@@ -78,16 +78,24 @@ export class AgentService {
       for await (const event of events) {
         switch (event.type) {
           case 'item.started':
+            if (event.item.type === 'web_search') {
+              console.log(`  🔎 Searching: ${event.item.query}`);
+            } else if (event.item.type === 'reasoning') {
+              console.log(`  💭 Agent is thinking...`);
+            } else if (event.item.type === 'command_execution') {
+              console.log(`  ⚙️  Executing command: ${event.item.command}`);
+            } else if (this.debug) {
+              console.log(`  ⚙️  Item started: ${event.item.type}`);
+            }
+            break;
           case 'item.updated':
           case 'item.completed':
             if (event.item.type === 'agent_message') {
               finalResponse = event.item.text;
               hasResponse = true;
             }
-            // Show progress
-            if (event.item.type === 'web_search') {
-              console.log(`  🔎 Searching: ${event.item.query}`);
-            } else if (event.item.type === 'todo_list') {
+            // Show progress for other item types
+            if (event.item.type === 'todo_list') {
               const todos = event.item.items.map((t, i) => 
                 `${i + 1}. [${t.completed ? '✓' : ' '}] ${t.text}`
               ).join('\n     ');
