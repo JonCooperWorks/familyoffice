@@ -1,0 +1,99 @@
+services:
+  familyoffice:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: familyoffice:latest
+    container_name: familyoffice-agent
+    
+    # Security configurations for isolation
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:unconfined  # May need adjustment based on Node.js requirements
+    
+    # Read-only root filesystem for security (disabled temporarily for Codex SDK)
+    # read_only: true
+    
+    # Resource limits to prevent resource exhaustion
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Network isolation
+    networks:
+      - familyoffice-net
+    
+    # Environment variables (use .env file for secrets)
+    environment:
+      - NODE_ENV=production
+      - TZ=UTC
+      - CODEX_CACHE_DIR=/app/.codex
+      - HOME=/home/familyoffice
+    
+    # Load environment variables from file (create this file with your API keys)
+    env_file:
+      - .env
+    
+    # Volume mounts for isolation
+    volumes:
+      # Output directory for reports (host directory will be created if it doesn't exist)
+      - ./reports:/app/reports:rw
+      
+      # Logs directory
+      - ./logs:/app/logs:rw
+      
+      # Writable cache directory
+      - cache:/app/.cache:rw
+      
+      # Codex SDK cache directory (needed for AI agent functionality)
+      - codex-cache:/app/.codex:rw
+      
+      # Mount host Codex authentication (read-write for session data)
+      - ~/.codex:/home/familyoffice/.codex:rw
+    
+    # Temporary filesystems for security
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+      - /run:rw,noexec,nosuid,size=64m
+      - /var/tmp:rw,noexec,nosuid,size=64m
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Drop unnecessary capabilities and run with minimal privileges
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+    
+    # Default command (can be overridden)
+    # Example: docker-compose run familyoffice research AAPL
+    command: ["--help"]
+
+# Dedicated network for isolation
+networks:
+  familyoffice-net:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: familyoffice-br
+
+# Named volumes
+volumes:
+  cache:
+    driver: local
+  codex-cache:
+    driver: local
