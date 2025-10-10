@@ -47,9 +47,48 @@ echo "📂 Outputs will be saved to: $(pwd)/reports/"
 echo "📝 Logs will be saved to: $(pwd)/logs/"
 echo ""
 
-# Use docker compose run for better isolation and automatic cleanup
-docker compose run --rm familyoffice "$@"
+# Generate log filename based on command and ticker
+COMMAND=""
+TICKER=""
+for arg in "$@"; do
+    if [[ "$arg" =~ ^[A-Z]{1,5}$ ]]; then
+        TICKER="$arg"
+        break
+    fi
+done
+
+# Set command type
+if [[ "$1" == "research" ]]; then
+    COMMAND="research"
+elif [[ "$1" == "reevaluate" ]]; then
+    COMMAND="reevaluate"  
+elif [[ "$1" == "chat" ]]; then
+    COMMAND="chat"
+else
+    COMMAND="run"
+fi
+
+# Generate log filename
+if [ -n "$TICKER" ]; then
+    TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
+    LOG_FILE="./logs/${TICKER}-docker-${COMMAND}-${TIMESTAMP}.log"
+else
+    LOG_FILE="./logs/docker-$(date +%Y-%m-%d_%H-%M-%S).log"
+fi
+
+echo "📝 Capturing output to: $LOG_FILE"
+echo ""
+
+# Use docker compose run and capture output to both terminal and log file
+docker compose run --rm familyoffice "$@" 2>&1 | tee "$LOG_FILE"
+
+EXIT_CODE=${PIPESTATUS[0]}
 
 echo ""
-echo "✅ Container execution completed"
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "✅ Container execution completed successfully"
+else
+    echo "❌ Container execution failed with exit code: $EXIT_CODE"
+fi
 echo "📂 Check ./reports/ for any generated research files"
+echo "📝 Full log saved to: $LOG_FILE"

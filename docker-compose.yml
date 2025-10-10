@@ -80,6 +80,9 @@ services:
       - SETGID
       - SETUID
     
+    # Set working directory to reports so files are written directly to host volume
+    working_dir: /app/reports
+
     # Default command (can be overridden)
     # Example: docker-compose run familyoffice research AAPL
     command: ["--help"]

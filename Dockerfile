@@ -73,7 +73,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD node --version || exit 1
 
 # Use dumb-init to handle signals properly and run the CLI
-ENTRYPOINT ["dumb-init", "--", "node", "dist/cli.js"]
+ENTRYPOINT ["dumb-init", "--", "node", "/app/dist/cli.js"]
 
 # Default command (will be appended to ENTRYPOINT)
 CMD []
