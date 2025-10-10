@@ -4,6 +4,7 @@ import { PromptLoader } from '../utils/promptLoader.js';
 export interface AgentConfig {
   model?: string;
   apiKey?: string;
+  debug?: boolean;
 }
 
 export interface ResearchRequest {
@@ -21,6 +22,7 @@ export class AgentService {
   private promptLoader: PromptLoader;
   private model: string;
   private threads: Map<string, Thread> = new Map();
+  private debug: boolean;
 
   constructor(config: AgentConfig = {}) {
     // Codex SDK automatically uses your CLI authentication!
@@ -29,13 +31,14 @@ export class AgentService {
     this.promptLoader = new PromptLoader();
     // Use default model or specified one
     this.model = config.model || '';
+    this.debug = config.debug || false;
   }
 
   async research(request: ResearchRequest): Promise<string> {
     console.log(`\n🔍 Starting research on ${request.companyName} (${request.ticker})...\n`);
     
     // Load the research prompt template
-    const promptTemplate = this.promptLoader.loadPrompt('research-stock-prompt');
+    const promptTemplate = this.promptLoader.loadPrompt('prompt-research-stock');
     
     // Get current date in readable format
     const currentDate = new Date().toLocaleDateString('en-US', { 
@@ -89,6 +92,11 @@ export class AgentService {
                 `${i + 1}. [${t.completed ? '✓' : ' '}] ${t.text}`
               ).join('\n     ');
               console.log(`  📋 Plan:\n     ${todos}`);
+            } else if (event.item.type === 'thinking') {
+              // Display thinking/chain of thought when completed
+              if (event.type === 'item.completed') {
+                console.log(`  💭 Thinking: ${event.item.text.substring(0, 150)}...`);
+              }
             }
             break;
           case 'turn.completed':
@@ -109,6 +117,119 @@ export class AgentService {
       return finalResponse;
     } catch (error) {
       throw new Error(`Research failed: ${(error as Error).message}`);
+    }
+  }
+
+  async reevaluate(request: ResearchRequest, existingReport: string): Promise<string> {
+    console.log(`\n🔄 Starting reevaluation of ${request.companyName} (${request.ticker})...\n`);
+    
+    // Load the reevaluation prompt template
+    const promptTemplate = this.promptLoader.loadPrompt('prompt-reevaluate-stock');
+    
+    // Get current date in readable format
+    const currentDate = new Date().toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    
+    if (this.debug) {
+      console.log('📝 Preparing reevaluation prompt with existing report...');
+      console.log(`   Report length: ${existingReport.length} characters`);
+    }
+    
+    // Fill in the template with the provided values
+    const prompt = this.promptLoader.fillTemplate(promptTemplate.content, {
+      companyName: request.companyName,
+      ticker: request.ticker,
+      currentDate: currentDate,
+      reportContent: existingReport,
+    });
+
+    if (this.debug) {
+      console.log(`   Final prompt length: ${prompt.length} characters`);
+      console.log('🚀 Creating thread and starting reevaluation...');
+    }
+
+    // Create a new thread for this reevaluation
+    const thread = this.codex.startThread({
+      ...(this.model && { model: this.model }),
+      workingDirectory: process.cwd(),
+      skipGitRepoCheck: true,
+      sandboxMode: 'danger-full-access',
+    });
+    
+    // Store the thread
+    this.threads.set(`reevaluation-${request.ticker}`, thread);
+
+    console.log('Running reevaluation...\n');
+    
+    try {
+      // Run the reevaluation prompt with streaming
+      const { events } = await thread.runStreamed(prompt);
+      
+      let finalResponse = '';
+      let hasResponse = false;
+      let eventCount = 0;
+      
+      for await (const event of events) {
+        eventCount++;
+        
+        if (this.debug && eventCount <= 10) {
+          console.log(`   [Event ${eventCount}] ${event.type}`);
+        }
+        
+        switch (event.type) {
+          case 'item.started':
+            if (event.item.type === 'web_search') {
+              console.log(`  🔎 Searching: ${event.item.query}`);
+            } else if (event.item.type === 'thinking') {
+              console.log(`  💭 Agent is thinking...`);
+            } else if (event.item.type === 'command_execution') {
+              console.log(`  ⚙️  Executing command: ${event.item.command}`);
+            } else if (this.debug) {
+              console.log(`  ⚙️  Item started: ${event.item.type}`);
+            }
+            break;
+          case 'item.updated':
+          case 'item.completed':
+            if (event.item.type === 'agent_message') {
+              finalResponse = event.item.text;
+              hasResponse = true;
+            }
+            // Show progress
+            if (event.item.type === 'web_search' && event.type === 'item.completed') {
+              console.log(`  ✓ Search completed`);
+            } else if (event.item.type === 'todo_list') {
+              const todos = event.item.items.map((t, i) => 
+                `${i + 1}. [${t.completed ? '✓' : ' '}] ${t.text}`
+              ).join('\n     ');
+              console.log(`  📋 Plan:\n     ${todos}`);
+            } else if (event.item.type === 'thinking' && event.type === 'item.completed') {
+              // Display thinking/chain of thought when completed
+              const thinkingSummary = event.item.text.substring(0, 150);
+              console.log(`  💭 ${thinkingSummary}${event.item.text.length > 150 ? '...' : ''}`);
+            }
+            break;
+          case 'turn.completed':
+            console.log(`\n✅ Reevaluation completed!`);
+            if (event.usage) {
+              console.log(`   Tokens: ${event.usage.input_tokens} in, ${event.usage.output_tokens} out\n`);
+            }
+            break;
+          case 'turn.failed':
+            throw new Error(`Reevaluation failed: ${event.error.message}`);
+        }
+      }
+      
+      if (!hasResponse || !finalResponse) {
+        throw new Error('No response generated from reevaluation. The agent may need a different prompt or model configuration.');
+      }
+      
+      return finalResponse;
+    } catch (error) {
+      throw new Error(`Reevaluation failed: ${(error as Error).message}`);
     }
   }
 

@@ -2,6 +2,8 @@
 
 Today's date is ${currentDate}.
 
+**IMPORTANT: You MUST search the web extensively to gather current information. Do not rely on your training data alone.**
+
 Write a comprehensive investment analysis of ${companyName} (ticker: ${ticker}) in the style of a professional equity research memo. Structure the output with the following sections:
 	1.	Who are they?
 	2.	How will they make money?
@@ -18,3 +20,5 @@ Style guidelines:
 	•	Highlight both the bull case and bear case clearly.
 	•	Include numbers, growth rates, margins, TAM if available.
 	•	Keep it grounded in evidence, citing sources with working URLs.
+	•	**Every major claim should be backed by a web search and source URL.**
+	•	Search for: recent earnings reports, SEC filings, investor presentations, analyst coverage, news articles, competitive analysis.
