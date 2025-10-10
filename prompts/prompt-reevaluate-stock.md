@@ -33,7 +33,9 @@ Please conduct a thorough reevaluation of this report and produce a comprehensiv
 	6.	Headwinds
 	7.	When should I sell?
 	8.	What has changed since the last report? (NEW SECTION - highlight key updates)
-	9.	Sources (include URLs to company filings, investor presentations, credible news articles, and analyst notes)
+	9.	Why should I buy this stock?
+	10.	Why should I avoid this stock?
+	11.	Sources (include URLs to company filings, investor presentations, credible news articles, and analyst notes)
 
 **Style guidelines:**
 	•	Use short paragraphs with bolded keywords for readability.

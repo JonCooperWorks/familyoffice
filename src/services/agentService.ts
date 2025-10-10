@@ -92,7 +92,7 @@ export class AgentService {
                 `${i + 1}. [${t.completed ? '✓' : ' '}] ${t.text}`
               ).join('\n     ');
               console.log(`  📋 Plan:\n     ${todos}`);
-            } else if (event.item.type === 'thinking') {
+            } else if (event.item.type === 'reasoning') {
               // Display thinking/chain of thought when completed
               if (event.type === 'item.completed') {
                 console.log(`  💭 Thinking: ${event.item.text.substring(0, 150)}...`);
@@ -184,7 +184,7 @@ export class AgentService {
           case 'item.started':
             if (event.item.type === 'web_search') {
               console.log(`  🔎 Searching: ${event.item.query}`);
-            } else if (event.item.type === 'thinking') {
+            } else if (event.item.type === 'reasoning') {
               console.log(`  💭 Agent is thinking...`);
             } else if (event.item.type === 'command_execution') {
               console.log(`  ⚙️  Executing command: ${event.item.command}`);
@@ -206,7 +206,7 @@ export class AgentService {
                 `${i + 1}. [${t.completed ? '✓' : ' '}] ${t.text}`
               ).join('\n     ');
               console.log(`  📋 Plan:\n     ${todos}`);
-            } else if (event.item.type === 'thinking' && event.type === 'item.completed') {
+            } else if (event.item.type === 'reasoning' && event.type === 'item.completed') {
               // Display thinking/chain of thought when completed
               const thinkingSummary = event.item.text.substring(0, 150);
               console.log(`  💭 ${thinkingSummary}${event.item.text.length > 150 ? '...' : ''}`);

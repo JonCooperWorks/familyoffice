@@ -12,7 +12,9 @@ Write a comprehensive investment analysis of ${companyName} (ticker: ${ticker}) 
 	5.	Tailwinds
 	6.	Headwinds
 	7.	When should I sell?
-	8.	Sources (include URLs to company filings, investor presentations, credible news articles, and analyst notes)
+	8.	Why should I buy this stock?
+	9.	Why should I avoid this stock?
+	10.	Sources (include URLs to company filings, investor presentations, credible news articles, and analyst notes)
 
 Style guidelines:
 	•	Use short paragraphs with bolded keywords for readability.
