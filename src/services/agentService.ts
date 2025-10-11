@@ -37,6 +37,13 @@ export class AgentService {
   async research(request: ResearchRequest): Promise<string> {
     console.log(`\n🔍 Starting research on ${request.companyName} (${request.ticker})...\n`);
     
+    // Create a temp directory for this run
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const tempDir = `./temp/${request.ticker}-research-${timestamp}`;
+    const fs = await import('fs/promises');
+    await fs.mkdir(tempDir, { recursive: true });
+    console.log(`📁 Temp directory: ${tempDir}\n`);
+    
     // Load the research prompt template
     const promptTemplate = this.promptLoader.loadPrompt('prompt-research-stock');
     
@@ -53,12 +60,13 @@ export class AgentService {
       companyName: request.companyName,
       ticker: request.ticker,
       currentDate: currentDate,
+      tempDir: tempDir,
     });
 
-    // Create a new thread for this research
+    // Create a new thread for this research with temp directory as working directory
     const thread = this.codex.startThread({
       ...(this.model && { model: this.model }),
-      workingDirectory: process.cwd(),
+      workingDirectory: tempDir,
       skipGitRepoCheck: true,
       sandboxMode: 'danger-full-access',
     });
@@ -131,6 +139,13 @@ export class AgentService {
   async reevaluate(request: ResearchRequest, existingReport: string): Promise<string> {
     console.log(`\n🔄 Starting reevaluation of ${request.companyName} (${request.ticker})...\n`);
     
+    // Create a temp directory for this run
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const tempDir = `./temp/${request.ticker}-reevaluate-${timestamp}`;
+    const fs = await import('fs/promises');
+    await fs.mkdir(tempDir, { recursive: true });
+    console.log(`📁 Temp directory: ${tempDir}\n`);
+    
     // Load the reevaluation prompt template
     const promptTemplate = this.promptLoader.loadPrompt('prompt-reevaluate-stock');
     
@@ -153,6 +168,7 @@ export class AgentService {
       ticker: request.ticker,
       currentDate: currentDate,
       reportContent: existingReport,
+      tempDir: tempDir,
     });
 
     if (this.debug) {
@@ -160,10 +176,10 @@ export class AgentService {
       console.log('🚀 Creating thread and starting reevaluation...');
     }
 
-    // Create a new thread for this reevaluation
+    // Create a new thread for this reevaluation with temp directory as working directory
     const thread = this.codex.startThread({
       ...(this.model && { model: this.model }),
-      workingDirectory: process.cwd(),
+      workingDirectory: tempDir,
       skipGitRepoCheck: true,
       sandboxMode: 'danger-full-access',
     });
@@ -244,13 +260,21 @@ export class AgentService {
   async chat(ticker: string, message: string, reportContent?: string): Promise<string> {
     // Check if there's an existing thread for this ticker
     let thread = this.threads.get(`chat-${ticker}`);
+    let tempDir: string | undefined;
     
     if (!thread) {
+      // Create a temp directory for this chat session
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      tempDir = `./temp/${ticker}-chat-${timestamp}`;
+      const fs = await import('fs/promises');
+      await fs.mkdir(tempDir, { recursive: true });
+      
       // Create a new thread for chatting about this stock
       console.log(`\n💬 Starting new chat thread about ${ticker}...`);
+      console.log(`📁 Temp directory: ${tempDir}\n`);
       thread = this.codex.startThread({
         ...(this.model && { model: this.model }),
-        workingDirectory: process.cwd(),
+        workingDirectory: tempDir,
         skipGitRepoCheck: true,
         sandboxMode: 'danger-full-access',
       });

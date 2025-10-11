@@ -47,6 +47,9 @@ services:
       # Logs directory
       - ./logs:/app/logs:rw
       
+      # Temp directory for intermediate files
+      - ./temp:/app/temp:rw
+      
       # Writable cache directory
       - cache:/app/.cache:rw
       

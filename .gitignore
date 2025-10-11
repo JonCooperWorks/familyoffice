@@ -77,4 +77,7 @@ batch/
 reports/
 output/
 
+# Temporary files from research runs
+temp/
+
 *.htm

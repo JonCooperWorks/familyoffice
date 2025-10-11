@@ -4,6 +4,8 @@ Today's date is ${currentDate}.
 
 **IMPORTANT: You MUST search the web extensively to gather current information. Do not rely on your training data alone.**
 
+**Working Directory:** Your working directory is `${tempDir}`. Save any intermediate files (HTML, XML, downloaded documents, etc.) here. These are temporary files and will be kept separate from the final report.
+
 Write a comprehensive investment analysis of ${companyName} (ticker: ${ticker}) in the style of a professional equity research memo. Structure the output with the following sections:
 	1.	Who are they?
 	2.	How will they make money?
