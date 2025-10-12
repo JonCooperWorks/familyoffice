@@ -1,0 +1,376 @@
+.markdown-viewer {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.markdown-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 0 20px 0;
+  border-bottom: 1px solid #e5e5e7;
+  margin-bottom: 20px;
+}
+
+.back-button {
+  padding: 8px 16px;
+  background: #f5f5f7;
+  color: #1d1d1f;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  align-self: flex-start;
+}
+
+.back-button:hover {
+  background: #e8e8ed;
+}
+
+.markdown-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.markdown-title h2 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.markdown-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.markdown-actions .action-button {
+  padding: 10px 20px;
+  background: #f5f5f7;
+  color: #1d1d1f;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+}
+
+.markdown-actions .action-button:hover {
+  background: #e8e8ed;
+}
+
+.markdown-actions .action-button.primary {
+  background: #0071e3;
+  color: white;
+}
+
+.markdown-actions .action-button.primary:hover {
+  background: #0077ed;
+}
+
+.markdown-content-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+  min-height: 0;
+}
+
+.markdown-loading,
+.markdown-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 16px;
+}
+
+.markdown-error h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #d32f2f;
+  margin: 0;
+}
+
+.markdown-error p {
+  color: #6e6e73;
+  font-size: 14px;
+  margin: 0;
+}
+
+.markdown-error button {
+  padding: 10px 24px;
+  background: #0071e3;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 12px;
+}
+
+.markdown-error button:hover {
+  background: #0077ed;
+}
+
+.markdown-content {
+  padding: 20px 0 48px;
+  color: #1d1d1f;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+/* Markdown Styling */
+.markdown-content h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 32px 0 16px;
+  color: #1d1d1f;
+  border-bottom: 2px solid #e5e5e7;
+  padding-bottom: 12px;
+}
+
+.markdown-content h1:first-child {
+  margin-top: 0;
+}
+
+.markdown-content h2 {
+  font-size: 26px;
+  font-weight: 600;
+  margin: 28px 0 14px;
+  color: #1d1d1f;
+}
+
+.markdown-content h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 24px 0 12px;
+  color: #1d1d1f;
+}
+
+.markdown-content h4 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 20px 0 10px;
+  color: #1d1d1f;
+}
+
+.markdown-content p {
+  margin: 12px 0;
+  line-height: 1.7;
+  color: #1d1d1f;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin: 16px 0;
+  padding-left: 32px;
+  line-height: 1.7;
+}
+
+.markdown-content li {
+  margin: 8px 0;
+  padding-left: 4px;
+}
+
+.markdown-content li > p {
+  margin: 4px 0;
+}
+
+.markdown-content ul ul,
+.markdown-content ol ol,
+.markdown-content ul ol,
+.markdown-content ol ul {
+  margin: 4px 0;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.markdown-content em {
+  font-style: italic;
+  color: #424245;
+}
+
+.markdown-content del {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.markdown-content code {
+  background: #f5f5f7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 0.9em;
+  color: #c7254e;
+}
+
+.markdown-content pre {
+  background: #f5f5f7;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.markdown-content pre code {
+  background: none;
+  padding: 0;
+  color: #1d1d1f;
+  font-size: 13px;
+}
+
+.markdown-content blockquote {
+  border-left: 4px solid #0071e3;
+  margin: 16px 0;
+  padding: 12px 20px;
+  background: #f5f9ff;
+  color: #424245;
+  border-radius: 4px;
+}
+
+.markdown-content blockquote p {
+  margin: 0;
+}
+
+.markdown-content blockquote p:first-child {
+  margin-top: 0;
+}
+
+.markdown-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content a {
+  color: #0071e3;
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.markdown-content a:hover {
+  text-decoration: underline;
+}
+
+.markdown-content a:visited {
+  color: #5e5ce6;
+}
+
+/* Inline link citations */
+.markdown-content a[href^="http"] {
+  font-size: 0.95em;
+}
+
+.markdown-content .table-wrapper {
+  overflow-x: auto;
+  margin: 20px 0;
+  border-radius: 8px;
+  border: 1px solid #d2d2d7;
+}
+
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: 14px;
+  min-width: 100%;
+}
+
+.markdown-content table th,
+.markdown-content table td {
+  border: 1px solid #d2d2d7;
+  padding: 12px 16px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-content table th {
+  background: #f5f5f7;
+  font-weight: 600;
+  color: #1d1d1f;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.markdown-content table td {
+  background: white;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.markdown-content table tbody tr:hover td {
+  background: #fafafa;
+}
+
+.markdown-content table tr:not(:last-child) td {
+  border-bottom: 1px solid #e5e5e7;
+}
+
+/* Better table alignment */
+.markdown-content table td:first-child,
+.markdown-content table th:first-child {
+  padding-left: 16px;
+}
+
+.markdown-content table td:last-child,
+.markdown-content table th:last-child {
+  padding-right: 16px;
+}
+
+.markdown-content hr {
+  border: none;
+  border-top: 1px solid #d2d2d7;
+  margin: 32px 0;
+}
+
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+/* Scrollbar styling */
+.markdown-content-wrapper::-webkit-scrollbar {
+  width: 12px;
+}
+
+.markdown-content-wrapper::-webkit-scrollbar-track {
+  background: #f5f5f7;
+}
+
+.markdown-content-wrapper::-webkit-scrollbar-thumb {
+  background: #d2d2d7;
+  border-radius: 6px;
+}
+
+.markdown-content-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #b8b8bd;
+}
+

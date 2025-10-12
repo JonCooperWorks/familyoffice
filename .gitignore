@@ -81,3 +81,9 @@ output/
 temp/
 
 *.htm
+
+# GUI build files
+gui/dist/
+gui/dist-electron/
+gui/release/
+gui/node_modules/

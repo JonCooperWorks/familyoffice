@@ -1,0 +1,185 @@
+.deps-check {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 40px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+}
+
+.deps-panel {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  padding: 40px;
+  max-width: 700px;
+  width: 100%;
+}
+
+.deps-panel h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #1d1d1f;
+}
+
+.subtitle {
+  color: #6e6e73;
+  font-size: 16px;
+  margin-bottom: 30px;
+}
+
+.deps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dep-item {
+  border: 2px solid #d2d2d7;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.2s ease;
+}
+
+.dep-item.success {
+  border-color: #34c759;
+  background: #f0fdf4;
+}
+
+.dep-item.warning {
+  border-color: #ff9500;
+  background: #fffbf0;
+}
+
+.dep-item.error {
+  border-color: #ff3b30;
+  background: #fff5f5;
+}
+
+.dep-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.dep-icon {
+  font-size: 32px;
+}
+
+.dep-item h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #1d1d1f;
+}
+
+.success-msg {
+  color: #34c759;
+  font-size: 14px;
+}
+
+.warning-msg {
+  color: #ff9500;
+  font-size: 14px;
+}
+
+.error-msg {
+  color: #ff3b30;
+  font-size: 14px;
+}
+
+.dep-action {
+  margin-top: 12px;
+}
+
+.action-button {
+  background: #0071e3;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.action-button:hover:not(:disabled) {
+  background: #0077ed;
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.link-button {
+  display: inline-block;
+  background: #0071e3;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.link-button:hover {
+  background: #0077ed;
+}
+
+.instructions {
+  background: #f5f5f7;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.instructions code {
+  background: #e8e8ed;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.build-output {
+  margin-top: 20px;
+  background: #1d1d1f;
+  color: #00ff00;
+  padding: 16px;
+  border-radius: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.build-output h3 {
+  color: white;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.build-output pre {
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.deps-footer {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.check-again-button {
+  background: #f5f5f7;
+  color: #1d1d1f;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.check-again-button:hover {
+  background: #e8e8ed;
+}
+

@@ -44,9 +44,12 @@ program
       const agent = new AgentService({ debug: options.debug });
       
       // Use reevaluate if report provided, otherwise regular research
-      const result = reportContent 
+      let result = reportContent 
         ? await agent.reevaluate({ companyName, ticker }, reportContent)
         : await agent.research({ companyName, ticker });
+      
+      // Clean up result - remove any leading asterisks or markdown artifacts
+      result = result.replace(/^\*+/, '').trim();
       
       // Generate output filename with timestamp
       let outputFile = options.output;
@@ -111,7 +114,10 @@ program
     
     try {
       const agent = new AgentService({ debug: options.debug });
-      const result = await agent.reevaluate({ companyName, ticker }, reportContent);
+      let result = await agent.reevaluate({ companyName, ticker }, reportContent);
+      
+      // Clean up result - remove any leading asterisks or markdown artifacts
+      result = result.replace(/^\*+/, '').trim();
       
       // Generate output filename with timestamp
       let outputFile = options.output;
@@ -154,28 +160,46 @@ program
   .command('chat <ticker>')
   .description('Start an interactive chat about a stock')
   .option('-r, --report <file>', 'Load a research report file into the chat context')
-  .action(async (ticker: string, options: { report?: string }) => {
+  .option('-m, --message <text>', 'Send a single message (non-interactive mode)')
+  .action(async (ticker: string, options: { report?: string; message?: string }) => {
     ticker = ticker.toUpperCase();
     let reportContent: string | undefined;
     let reportPath: string | undefined = options.report;
     const companyName = ticker; // Could be extracted from report if needed
-
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
 
     // Load report if provided
     if (options.report) {
       try {
         const fs = await import('fs/promises');
         reportContent = await fs.readFile(options.report, 'utf-8');
-        console.log(`📄 Loaded report: ${options.report}`);
+        if (!options.message) {
+          console.log(`📄 Loaded report: ${options.report}`);
+        }
       } catch (error) {
         console.error(`❌ Error loading report: ${(error as Error).message}`);
         process.exit(1);
       }
     }
+
+    // Non-interactive mode: single message
+    if (options.message) {
+      try {
+        const agent = new AgentService();
+        const response = await agent.chat(ticker, options.message, reportContent);
+        console.log(response);
+        await agent.cleanup();
+        process.exit(0);
+      } catch (error) {
+        console.error('❌ Error:', (error as Error).message);
+        process.exit(1);
+      }
+    }
+
+    // Interactive mode
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
 
     console.log(`\n💬 Starting chat about ${ticker}`);
     if (reportContent) {
@@ -201,7 +225,10 @@ program
           console.log('\n📝 Generating updated report based on our conversation...\n');
           
           try {
-            const updatedReport = await agent.updateReport(ticker);
+            let updatedReport = await agent.updateReport(ticker);
+            
+            // Clean up result - remove any leading asterisks or markdown artifacts
+            updatedReport = updatedReport.replace(/^\*+/, '').trim();
             
             // Generate output filename with timestamp
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
