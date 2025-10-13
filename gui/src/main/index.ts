@@ -37,6 +37,27 @@ function createWindow() {
     title: 'familyoffice'
   });
 
+  // Handle external links - open in system browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  // Handle navigation requests - intercept external links
+  mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
+    const parsedUrl = new URL(navigationUrl);
+    
+    // Allow navigation to our own app (localhost or file://)
+    if (parsedUrl.protocol === 'file:' || 
+        (parsedUrl.hostname === 'localhost' && parsedUrl.port === '5173')) {
+      return;
+    }
+    
+    // Prevent navigation and open external URLs in system browser
+    event.preventDefault();
+    shell.openExternal(navigationUrl);
+  });
+
   // In development, load from Vite dev server
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);

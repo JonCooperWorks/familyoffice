@@ -48,18 +48,20 @@ function Reports({ onOpenReport, onChat }: ReportsProps) {
     onOpenReport(report.path);
   };
 
-  const handleStartResearch = async (mode: 'new' | 'reevaluate', reportPath?: string) => {
-    if (!ticker) {
+  const handleStartResearch = async (mode: 'new' | 'reevaluate', reportPath?: string, tickerOverride?: string) => {
+    const effectiveTicker = tickerOverride || ticker;
+    
+    if (!effectiveTicker) {
       alert('Please enter a ticker symbol');
       return;
     }
 
     // Create background task
-    const taskId = `${ticker}-${Date.now()}`;
+    const taskId = `${effectiveTicker}-${Date.now()}`;
     const newTask: BackgroundTask = {
       id: taskId,
       type: mode === 'reevaluate' ? 'reevaluate' : 'research',
-      ticker: ticker.toUpperCase(),
+      ticker: effectiveTicker.toUpperCase(),
       companyName: companyName || undefined,
       reportPath,
       output: [],
@@ -141,9 +143,7 @@ function Reports({ onOpenReport, onChat }: ReportsProps) {
       const tickerValue = match[1];
       // Start reevaluation immediately without showing form
       setTicker(tickerValue);
-      setTimeout(() => {
-        handleStartResearch('reevaluate', report.path);
-      }, 0);
+      handleStartResearch('reevaluate', report.path, tickerValue);
     }
   };
 
@@ -152,9 +152,7 @@ function Reports({ onOpenReport, onChat }: ReportsProps) {
     const tickerValue = searchTerm.toUpperCase();
     setTicker(tickerValue);
     setSearchTerm(''); // Clear search to show all reports while research runs
-    setTimeout(() => {
-      handleStartResearch('new');
-    }, 0);
+    handleStartResearch('new', undefined, tickerValue);
   };
 
   const filteredReports = reports.filter(report =>
