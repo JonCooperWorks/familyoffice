@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import type { Report, ResearchRequest } from '../../shared/types';
-import MarkdownViewer from './MarkdownViewer';
 import './Reports.css';
 
 interface BackgroundTask {
@@ -15,14 +14,14 @@ interface BackgroundTask {
 }
 
 interface ReportsProps {
+  onOpenReport: (reportPath: string) => void;
   onChat: (reportPath: string) => void;
 }
 
-function Reports({ onChat }: ReportsProps) {
+function Reports({ onOpenReport, onChat }: ReportsProps) {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [ticker, setTicker] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [backgroundTasks, setBackgroundTasks] = useState<BackgroundTask[]>([]);
@@ -46,7 +45,7 @@ function Reports({ onChat }: ReportsProps) {
   };
 
   const handleOpen = (report: Report) => {
-    setSelectedReport(report.path);
+    onOpenReport(report.path);
   };
 
   const handleStartResearch = async (mode: 'new' | 'reevaluate', reportPath?: string) => {
@@ -97,7 +96,7 @@ function Reports({ onChat }: ReportsProps) {
       const updatedReports = await window.electronAPI.getReports();
       const newReport = updatedReports.find(r => r.ticker === newTask.ticker);
       if (newReport) {
-        setSelectedReport(newReport.path);
+        onOpenReport(newReport.path);
       }
       
       // Auto-remove completed task after 5 seconds
@@ -159,8 +158,7 @@ function Reports({ onChat }: ReportsProps) {
   };
 
   const filteredReports = reports.filter(report =>
-    report.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    report.company?.toLowerCase().includes(searchTerm.toLowerCase())
+    report.ticker.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const searchTickerExists = filteredReports.some(
@@ -178,22 +176,6 @@ function Reports({ onChat }: ReportsProps) {
     );
   }
 
-  if (selectedReport) {
-    return (
-      <MarkdownViewer
-        reportPath={selectedReport}
-        onBack={() => setSelectedReport(null)}
-        onChat={(reportPath) => {
-          setSelectedReport(null);
-          onChat(reportPath);
-        }}
-        onReevaluate={(reportPath) => {
-          setSelectedReport(null);
-          handleReevaluate({ path: reportPath } as Report);
-        }}
-      />
-    );
-  }
 
   const handleViewProgress = (taskId: string) => {
     setSelectedTaskId(taskId);
@@ -258,7 +240,7 @@ function Reports({ onChat }: ReportsProps) {
       <div className="search-bar">
         <input
           type="text"
-          placeholder="Search by ticker or company..."
+          placeholder="Search by ticker..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
           className="search-input"
@@ -290,9 +272,6 @@ function Reports({ onChat }: ReportsProps) {
               <div className="report-header">
                 <div>
                   <h3 className="report-ticker">{report.ticker}</h3>
-                  {report.company && (
-                    <p className="report-company">{report.company}</p>
-                  )}
                 </div>
                 <span className={`report-type ${report.type}`}>
                   {report.type === 'reevaluation' ? 'Reevaluation' : 'Research'}

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { readdir, readFile, stat, copyFile } from 'fs/promises';
+import { readdir, readFile, stat } from 'fs/promises';
 import { DependencyManager } from './deps';
 import { AgentManager } from './agentManager';
 import type { ResearchRequest, Report } from '../shared/types';
@@ -214,19 +214,19 @@ ipcMain.handle('read-report', async (_event, path: string) => {
   }
 });
 
-ipcMain.handle('export-report', async (_event, reportPath: string) => {
+ipcMain.handle('export-report', async (_event, reportPath: string, htmlContent: string) => {
   try {
     if (!mainWindow) return null;
     
-    // Extract the report filename for default save name
-    const filename = reportPath.split('/').pop() || 'report.md';
+    // Extract the report filename for default save name (change extension to PDF)
+    const filename = (reportPath.split('/').pop() || 'report.md').replace('.md', '.pdf');
     
     // Show save dialog
     const result = await dialog.showSaveDialog(mainWindow, {
-      title: 'Export Report',
+      title: 'Export Report as PDF',
       defaultPath: filename,
       filters: [
-        { name: 'Markdown files', extensions: ['md'] },
+        { name: 'PDF files', extensions: ['pdf'] },
         { name: 'All files', extensions: ['*'] }
       ]
     });
@@ -235,8 +235,41 @@ ipcMain.handle('export-report', async (_event, reportPath: string) => {
       return null;
     }
     
-    // Copy the report file to the chosen location
-    await copyFile(reportPath, result.filePath);
+    // Create a hidden window to render the content
+    const pdfWindow = new BrowserWindow({
+      width: 800,
+      height: 600,
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+    
+    // Load HTML content with proper styling
+    await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+    
+    // Wait for content to render
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Generate PDF
+    const pdfData = await pdfWindow.webContents.printToPDF({
+      printBackground: true,
+      margins: {
+        top: 0.5,
+        bottom: 0.5,
+        left: 0.5,
+        right: 0.5
+      },
+      pageSize: 'Letter'
+    });
+    
+    // Write PDF to file
+    const { writeFile } = await import('fs/promises');
+    await writeFile(result.filePath, pdfData);
+    
+    // Clean up
+    pdfWindow.close();
     
     return result.filePath;
   } catch (error) {

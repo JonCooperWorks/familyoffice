@@ -34,8 +34,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readReport: (path: string): Promise<string> => 
     ipcRenderer.invoke('read-report', path),
   
-  exportReport: (path: string): Promise<string | null> => 
-    ipcRenderer.invoke('export-report', path),
+  exportReport: (path: string, htmlContent: string): Promise<string | null> => 
+    ipcRenderer.invoke('export-report', path, htmlContent),
   
   // Event listeners
   onDockerOutput: (callback: (output: DockerOutput) => void) => {
@@ -75,7 +75,7 @@ declare global {
       getReports: () => Promise<Report[]>;
       openReport: (path: string) => Promise<void>;
       readReport: (path: string) => Promise<string>;
-      exportReport: (path: string) => Promise<string | null>;
+      exportReport: (path: string, htmlContent: string) => Promise<string | null>;
       onDockerOutput: (callback: (output: DockerOutput) => void) => () => void;
       onProcessComplete: (callback: (result: string) => void) => () => void;
       onProcessError: (callback: (error: string) => void) => () => void;

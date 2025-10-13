@@ -71,12 +71,16 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
   white-space: nowrap;
 }
 
 .markdown-actions .action-button:hover {
   background: #e8e8ed;
+}
+
+.markdown-actions .action-button:active {
+  transform: scale(0.95);
 }
 
 .markdown-actions .action-button.primary {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import DepsCheck from './components/DepsCheck';
-import Chat from './components/Chat';
 import Reports from './components/Reports';
+import ReportWithChat from './components/ReportWithChat';
 import type { DependencyStatus } from '../shared/types';
 import './App.css';
 
@@ -9,7 +9,8 @@ function App() {
   const [depsStatus, setDepsStatus] = useState<DependencyStatus | null>(null);
   const [depsChecked, setDepsChecked] = useState(false);
   const [selectedReport, setSelectedReport] = useState<string | undefined>();
-  const [chatMode, setChatMode] = useState(false);
+  const [reportViewMode, setReportViewMode] = useState<'dashboard' | 'report-with-chat'>('dashboard');
+  const [initialChatOpen, setInitialChatOpen] = useState(false);
 
   useEffect(() => {
     checkDependencies();
@@ -42,14 +43,27 @@ function App() {
     return <DepsCheck status={depsStatus!} onComplete={checkDependencies} />;
   }
 
-  const handleChatWithReport = (reportPath: string) => {
+  const handleOpenReport = (reportPath: string) => {
     setSelectedReport(reportPath);
-    setChatMode(true);
+    setInitialChatOpen(false);
+    setReportViewMode('report-with-chat');
   };
 
-  const handleClearChat = () => {
+  const handleChatWithReport = (reportPath: string) => {
+    setSelectedReport(reportPath);
+    setInitialChatOpen(true);
+    setReportViewMode('report-with-chat');
+  };
+
+  const handleBackToDashboard = () => {
     setSelectedReport(undefined);
-    setChatMode(false);
+    setInitialChatOpen(false);
+    setReportViewMode('dashboard');
+  };
+
+  const handleReevaluate = () => {
+    // Navigate back to dashboard to trigger reevaluation
+    setReportViewMode('dashboard');
   };
 
   return (
@@ -59,10 +73,18 @@ function App() {
       </header>
 
       <main className="app-content">
-        {chatMode ? (
-          <Chat preloadedReport={selectedReport} onClearReport={handleClearChat} />
+        {reportViewMode === 'report-with-chat' && selectedReport ? (
+          <ReportWithChat
+            reportPath={selectedReport}
+            onBack={handleBackToDashboard}
+            onReevaluate={handleReevaluate}
+            initialChatOpen={initialChatOpen}
+          />
         ) : (
-          <Reports onChat={handleChatWithReport} />
+          <Reports 
+            onOpenReport={handleOpenReport}
+            onChat={handleChatWithReport} 
+          />
         )}
       </main>
     </div>
