@@ -28,6 +28,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  id?: number; // Optional ID for tracking streaming messages
 }
 
 export interface Report {
@@ -50,9 +51,11 @@ export type IPCChannels =
   | 'build-docker-image'
   | 'run-research'
   | 'run-chat'
+  | 'update-report'
   | 'get-reports'
   | 'open-report'
   | 'read-report'
+  | 'export-report'
   | 'docker-output'
   | 'process-complete'
   | 'process-error';

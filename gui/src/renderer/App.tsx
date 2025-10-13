@@ -55,7 +55,7 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Family Office Research</h1>
+        <h1>familyoffice</h1>
       </header>
 
       <main className="app-content">

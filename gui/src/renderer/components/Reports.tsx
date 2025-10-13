@@ -23,7 +23,6 @@ function Reports({ onChat }: ReportsProps) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
-  const [showNewResearch, setShowNewResearch] = useState(false);
   const [ticker, setTicker] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [backgroundTasks, setBackgroundTasks] = useState<BackgroundTask[]>([]);
@@ -71,8 +70,7 @@ function Reports({ onChat }: ReportsProps) {
 
     setBackgroundTasks(prev => [...prev, newTask]);
     
-    // Close research modal and return to main view
-    setShowNewResearch(false);
+    // Clear form fields
     setTicker('');
     setCompanyName('');
 
@@ -85,13 +83,22 @@ function Reports({ onChat }: ReportsProps) {
       ));
     });
 
-    const cleanupComplete = window.electronAPI.onProcessComplete((result) => {
+    const cleanupComplete = window.electronAPI.onProcessComplete(async (result) => {
       setBackgroundTasks(prev => prev.map(task => 
         task.id === taskId 
           ? { ...task, status: 'completed' as const }
           : task
       ));
-      loadReports(); // Refresh the reports list
+      
+      // Refresh the reports list and auto-select the new report
+      await loadReports();
+      
+      // Find and open the newly created report
+      const updatedReports = await window.electronAPI.getReports();
+      const newReport = updatedReports.find(r => r.ticker === newTask.ticker);
+      if (newReport) {
+        setSelectedReport(newReport.path);
+      }
       
       // Auto-remove completed task after 5 seconds
       setTimeout(() => {
@@ -132,15 +139,23 @@ function Reports({ onChat }: ReportsProps) {
   const handleReevaluate = (report: Report) => {
     const match = report.path.match(/research-([A-Z]+)-/);
     if (match) {
-      setTicker(match[1]);
+      const tickerValue = match[1];
+      // Start reevaluation immediately without showing form
+      setTicker(tickerValue);
+      setTimeout(() => {
+        handleStartResearch('reevaluate', report.path);
+      }, 0);
     }
-    setReevaluateReport(report.path);
-    setShowNewResearch(true);
   };
 
   const handleResearchFromSearch = () => {
-    setTicker(searchTerm.toUpperCase());
-    setShowNewResearch(true);
+    // Start research immediately without showing form
+    const tickerValue = searchTerm.toUpperCase();
+    setTicker(tickerValue);
+    setSearchTerm(''); // Clear search to show all reports while research runs
+    setTimeout(() => {
+      handleStartResearch('new');
+    }, 0);
   };
 
   const filteredReports = reports.filter(report =>
@@ -177,81 +192,6 @@ function Reports({ onChat }: ReportsProps) {
           handleReevaluate({ path: reportPath } as Report);
         }}
       />
-    );
-  }
-
-  if (showNewResearch) {
-    return (
-      <div className="reports">
-        <div className="research-modal">
-          <div className="research-header">
-            <h2>{reevaluateReport ? 'Reevaluate Report' : 'New Research'}</h2>
-            <button 
-              className="close-modal-button" 
-              onClick={() => {
-                setShowNewResearch(false);
-                setReevaluateReport(null);
-                setTicker('');
-                setCompanyName('');
-                setOutput([]);
-              }}
-              disabled={isRunning}
-            >
-              ✕
-            </button>
-          </div>
-
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            handleStartResearch(reevaluateReport ? 'reevaluate' : 'new', reevaluateReport || undefined);
-          }} className="research-form">
-            <div className="form-group">
-              <label htmlFor="ticker">Ticker Symbol *</label>
-              <input
-                id="ticker"
-                type="text"
-                value={ticker}
-                onChange={(e) => setTicker(e.target.value.toUpperCase())}
-                placeholder="AAPL"
-                maxLength={5}
-                disabled={isRunning || !!reevaluateReport}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="company">Company Name (optional)</label>
-              <input
-                id="company"
-                type="text"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="Apple Inc."
-                disabled={isRunning}
-              />
-            </div>
-
-            {reevaluateReport && (
-              <div className="form-group">
-                <label>Report to Reevaluate</label>
-                <input
-                  type="text"
-                  value={reevaluateReport}
-                  disabled
-                  className="readonly-input"
-                />
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="submit-button"
-            >
-              {reevaluateReport ? 'Reevaluate Report' : 'Generate Report'}
-            </button>
-          </form>
-        </div>
-      </div>
     );
   }
 

@@ -14,47 +14,19 @@ export class DependencyManager {
   }
 
   async checkAll(): Promise<DependencyStatus> {
-    const [docker, codex, dockerImage, npmPackages] = await Promise.all([
-      this.checkDocker(),
+    const [codex, npmPackages] = await Promise.all([
       this.checkCodex(),
-      this.checkDockerImage(),
       this.checkNpmPackages()
     ]);
 
     return {
-      docker,
+      docker: { installed: true, running: true }, // No longer needed, but keep for compatibility
       codex,
-      dockerImage,
+      dockerImage: { built: true }, // No longer needed, but keep for compatibility
       npmPackages
     };
   }
 
-  private async checkDocker() {
-    try {
-      const { stdout: version } = await execAsync('docker --version');
-      
-      // Check if Docker daemon is running
-      try {
-        await execAsync('docker ps');
-        return {
-          installed: true,
-          running: true,
-          version: version.trim()
-        };
-      } catch {
-        return {
-          installed: true,
-          running: false,
-          version: version.trim()
-        };
-      }
-    } catch {
-      return {
-        installed: false,
-        running: false
-      };
-    }
-  }
 
   private async checkCodex() {
     try {
@@ -84,21 +56,6 @@ export class DependencyManager {
     }
   }
 
-  private async checkDockerImage() {
-    try {
-      const { stdout } = await execAsync('docker images familyoffice:latest -q');
-      const imageId = stdout.trim();
-      
-      return {
-        built: imageId.length > 0,
-        version: imageId || undefined
-      };
-    } catch {
-      return {
-        built: false
-      };
-    }
-  }
 
   private async checkNpmPackages() {
     const nodeModulesPath = join(this.projectRoot, 'node_modules');
@@ -121,32 +78,6 @@ export class DependencyManager {
     }
   }
 
-  async buildDockerImage(onOutput?: (data: string) => void): Promise<boolean> {
-    return new Promise((resolve) => {
-      const scriptPath = join(this.projectRoot, 'scripts', 'docker-build.sh');
-      
-      const child = exec(`bash "${scriptPath}"`, {
-        cwd: this.projectRoot,
-        maxBuffer: 10 * 1024 * 1024
-      });
-
-      child.stdout?.on('data', (data) => {
-        if (onOutput) onOutput(data.toString());
-      });
-
-      child.stderr?.on('data', (data) => {
-        if (onOutput) onOutput(data.toString());
-      });
-
-      child.on('close', (code) => {
-        resolve(code === 0);
-      });
-
-      child.on('error', () => {
-        resolve(false);
-      });
-    });
-  }
 
   getInstallInstructions(dep: 'docker' | 'codex'): string {
     if (dep === 'docker') {

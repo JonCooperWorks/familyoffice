@@ -50,6 +50,19 @@ function MarkdownViewer({ reportPath, onBack, onChat, onReevaluate }: MarkdownVi
     return filename.replace('.md', '');
   };
 
+  const handleExport = async () => {
+    try {
+      const exportedPath = await window.electronAPI.exportReport(reportPath);
+      if (exportedPath) {
+        // Could add a toast notification here if desired
+        console.log('Report exported to:', exportedPath);
+      }
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      alert('Failed to export report. Please try again.');
+    }
+  };
+
   return (
     <div className="markdown-viewer">
       <div className="markdown-header">
@@ -63,6 +76,9 @@ function MarkdownViewer({ reportPath, onBack, onChat, onReevaluate }: MarkdownVi
           <div className="markdown-actions">
             <button className="action-button" onClick={() => onReevaluate(reportPath)}>
               🔄 Reevaluate
+            </button>
+            <button className="action-button" onClick={handleExport}>
+              📁 Export
             </button>
             <button className="action-button primary" onClick={() => onChat(reportPath)}>
               💬 Chat

@@ -18,35 +18,75 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionStarted, setSessionStarted] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load chat history from localStorage on mount
+  // History loading is now handled in the preloadedReport useEffect above
+
+  // Save chat history for current ticker whenever it changes
   useEffect(() => {
-    const savedHistory = localStorage.getItem('chatHistory');
+    if (ticker && (messages.length > 0 || sessionStarted)) {
+      try {
+        const historyKey = `chatHistory_${ticker}`;
+        const historyData = {
+          messages: messages.map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp.toISOString() // Convert Date to string for storage
+          })),
+          reportPath,
+          sessionStarted
+        };
+        localStorage.setItem(historyKey, JSON.stringify(historyData));
+      } catch (error) {
+        console.error('Failed to save chat history for', ticker, ':', error);
+      }
+    }
+  }, [messages, ticker, reportPath, sessionStarted]);
+
+  // Function to load history for a ticker
+  const loadHistoryForTicker = (tickerToLoad: string) => {
+    setIsLoadingHistory(true);
+    
+    const historyKey = `chatHistory_${tickerToLoad}`;
+    const savedHistory = localStorage.getItem(historyKey);
+    
     if (savedHistory) {
       try {
         const parsed = JSON.parse(savedHistory);
-        setMessages(parsed.messages || []);
-        setTicker(parsed.ticker || '');
-        setReportPath(parsed.reportPath || '');
-        setSessionStarted(parsed.sessionStarted || false);
+        const messagesWithDates = (parsed.messages || []).map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+        
+        // Clear existing messages first
+        setMessages([]);
+        
+        // Set new messages
+        setTimeout(() => {
+          setMessages(messagesWithDates);
+          setSessionStarted(true);
+          setIsLoadingHistory(false);
+        }, 50);
+        
+        return true;
       } catch (error) {
-        console.error('Failed to load chat history:', error);
+        console.error('Failed to parse saved history:', error);
+        localStorage.removeItem(historyKey);
       }
     }
-  }, []);
-
-  // Save chat history to localStorage whenever it changes
-  useEffect(() => {
-    if (messages.length > 0 || sessionStarted) {
-      localStorage.setItem('chatHistory', JSON.stringify({
-        messages,
-        ticker,
-        reportPath,
-        sessionStarted
-      }));
-    }
-  }, [messages, ticker, reportPath, sessionStarted]);
+    
+    // No history found or failed to load
+    setMessages([{
+      role: 'assistant',
+      content: `Chat session started for ${tickerToLoad} with loaded report. Ask me anything about this stock!`,
+      timestamp: new Date()
+    }]);
+    setSessionStarted(true);
+    
+    setIsLoadingHistory(false);
+    return false;
+  };
 
   useEffect(() => {
     if (preloadedReport) {
@@ -55,14 +95,11 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
       // Extract ticker from filename
       const match = preloadedReport.match(/research-([A-Z]+)-/);
       if (match) {
-        setTicker(match[1]);
-        // Auto-start the session when we have a preloaded report
-        setSessionStarted(true);
-        setMessages([{
-          role: 'assistant',
-          content: `Chat session started for ${match[1]} with loaded report. Ask me anything about this stock!`,
-          timestamp: new Date()
-        }]);
+        const extractedTicker = match[1];
+        setTicker(extractedTicker);
+        
+        // Load history for this ticker
+        loadHistoryForTicker(extractedTicker);
       }
     }
   }, [preloadedReport]);
@@ -95,47 +132,84 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
       timestamp: new Date()
     };
 
+    const currentInput = input;
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
+    // Add a placeholder assistant message that will be updated with streaming content
+    const assistantMessageId = Date.now();
+    const initialAssistantMessage: ChatMessage = {
+      role: 'assistant',
+      content: '',
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, { ...initialAssistantMessage, id: assistantMessageId }]);
+
+    // Set up streaming listener
+    const cleanupStream = window.electronAPI.onChatStream((streamedText) => {
+      setIsStreaming(true);
+      setMessages(prev => prev.map(msg => 
+        (msg as any).id === assistantMessageId 
+          ? { ...msg, content: streamedText }
+          : msg
+      ));
+    });
+
     try {
-      // Note: This is simplified. The real chat would need proper handling
-      // For now, we'll show a message that chat needs CLI enhancement
       const response = await window.electronAPI.runChat(
         ticker.toUpperCase(),
-        input,
+        currentInput,
         reportPath || undefined
       );
 
-      const assistantMessage: ChatMessage = {
-        role: 'assistant',
-        content: response || 'Chat functionality requires CLI enhancement for non-interactive mode.',
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
+      // Final update with complete response (in case streaming missed anything)
+      setMessages(prev => prev.map(msg => 
+        (msg as any).id === assistantMessageId 
+          ? { ...msg, content: response || 'No response received.' }
+          : msg
+      ));
     } catch (error) {
-      const errorMessage: ChatMessage = {
-        role: 'assistant',
-        content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      // Replace the streaming message with error
+      setMessages(prev => prev.map(msg => 
+        (msg as any).id === assistantMessageId 
+          ? { ...msg, content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` }
+          : msg
+      ));
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
+      cleanupStream(); // Clean up the streaming listener
     }
   };
 
+  const handleClearChat = () => {
+    // Clear just the messages to reset context window, but keep the session active
+    setMessages([{
+      role: 'assistant',
+      content: `Chat context cleared for ${ticker}${reportPath ? ' with loaded report' : ''}. Ask me anything!`,
+      timestamp: new Date()
+    }]);
+    setInput('');
+    
+    // Also clear from localStorage for this ticker
+    const historyKey = `chatHistory_${ticker}`;
+    localStorage.removeItem(historyKey);
+  };
+
   const handleReset = () => {
+    // DON'T clear history when going back to reports - just clear UI state
     setTicker('');
     setReportPath('');
     setMessages([]);
     setInput('');
     setSessionStarted(false);
-    localStorage.removeItem('chatHistory');
+    setIsStreaming(false);
+    setIsLoadingHistory(false);
     onClearReport();
   };
+
 
   // If no preloaded report, show setup form
   if (!preloadedReport && !sessionStarted) {
@@ -186,16 +260,35 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
     <div className="chat">
       <div className="chat-container">
         <div className="chat-header">
-          <button onClick={handleReset} className="back-button">
-            ← Back to Reports
-          </button>
-          <div>
-            <h2>{ticker}</h2>
-            {reportPath && <p className="report-loaded">📄 Report loaded</p>}
+          <div className="header-left">
+            <button onClick={handleReset} className="back-button">
+              ← Back to Reports
+            </button>
+          </div>
+          <div className="header-center">
+            <h2>familyoffice</h2>
+            <div className="ticker-row">
+              <p className="ticker-info">{ticker}{reportPath && ' • 📄 Report loaded'}</p>
+              <button onClick={handleClearChat} className="clear-button">
+                🗑️ Clear Chat
+              </button>
+            </div>
+          </div>
+          <div className="header-right">
           </div>
         </div>
 
         <div className="messages">
+          {isLoadingHistory && (
+            <div className="message assistant loading">
+              <div className="message-header">
+                <span className="message-role">System</span>
+              </div>
+              <div className="message-content">
+                <span className="typing-indicator">●●●</span> Loading chat history...
+              </div>
+            </div>
+          )}
           {messages.map((msg, idx) => (
             <div key={idx} className={`message ${msg.role}`}>
               <div className="message-header">
@@ -223,6 +316,10 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
                 >
                   {msg.content}
                 </ReactMarkdown>
+                {/* Show streaming cursor for assistant messages that are being streamed */}
+                {msg.role === 'assistant' && isStreaming && (msg as any).id && (
+                  <span className="streaming-cursor">▋</span>
+                )}
               </div>
             </div>
           ))}

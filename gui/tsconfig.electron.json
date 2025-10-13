@@ -16,6 +16,6 @@
     "allowSyntheticDefaultImports": true,
     "composite": true
   },
-  "include": ["src/main", "src/shared"]
+  "include": ["src/main", "src/shared", "src/services", "src/utils"]
 }
 

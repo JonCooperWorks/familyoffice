@@ -1,10 +1,15 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { readdir, readFile, stat } from 'fs/promises';
+import { readdir, readFile, stat, copyFile } from 'fs/promises';
 import { DependencyManager } from './deps';
-import { DockerManager } from './docker';
+import { AgentManager } from './agentManager';
 import type { ResearchRequest, Report } from '../shared/types';
+import fixPath from 'fix-path';
+
+// Fix PATH and set Codex binary location early
+fixPath();
+process.env.CODEX_BINARY = '/opt/homebrew/bin/codex';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,7 +19,7 @@ const PROJECT_ROOT = join(__dirname, '..', '..', '..');
 
 let mainWindow: BrowserWindow | null = null;
 const depManager = new DependencyManager(PROJECT_ROOT);
-const dockerManager = new DockerManager(PROJECT_ROOT);
+const agentManager = new AgentManager(PROJECT_ROOT);
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -28,7 +33,7 @@ function createWindow() {
       nodeIntegration: false
     },
     titleBarStyle: 'default',
-    title: 'Family Office Research'
+    title: 'familyoffice'
   });
 
   // In development, load from Vite dev server
@@ -73,28 +78,28 @@ ipcMain.handle('install-dependency', async (_event, dep: string) => {
 });
 
 ipcMain.handle('build-docker-image', async () => {
-  dockerManager.setOutputHandler((type, data) => {
-    mainWindow?.webContents.send('docker-output', { type, data });
-  });
-  
-  return await depManager.buildDockerImage((data) => {
-    mainWindow?.webContents.send('docker-output', { type: 'stdout', data });
-  });
+  // No longer needed - Codex runs directly in the app
+  return true;
 });
 
 ipcMain.handle('run-research', async (_event, request: ResearchRequest) => {
   try {
-    dockerManager.setOutputHandler((type, data) => {
+    agentManager.setOutputHandler((type, data) => {
       mainWindow?.webContents.send('docker-output', { type, data });
     });
     
-    const result = await dockerManager.runResearch(request);
+    let result: string;
     
-    // Get the generated report path
-    const reportPath = await dockerManager.getGeneratedReportPath(request.ticker);
+    if (request.reportPath) {
+      // This is a reevaluation
+      result = await agentManager.runReevaluate(request, request.reportPath);
+    } else {
+      // This is new research
+      result = await agentManager.runResearch(request);
+    }
     
-    mainWindow?.webContents.send('process-complete', reportPath || result);
-    return reportPath || result;
+    mainWindow?.webContents.send('process-complete', result);
+    return result;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     mainWindow?.webContents.send('process-error', errorMsg);
@@ -104,11 +109,36 @@ ipcMain.handle('run-research', async (_event, request: ResearchRequest) => {
 
 ipcMain.handle('run-chat', async (_event, ticker: string, message: string, reportPath?: string) => {
   try {
-    dockerManager.setOutputHandler((type, data) => {
+    agentManager.setOutputHandler((type, data) => {
       mainWindow?.webContents.send('docker-output', { type, data });
     });
     
-    const result = await dockerManager.runChat(ticker, message, reportPath);
+    const result = await agentManager.runChat(
+      ticker, 
+      message, 
+      reportPath,
+      (streamedText) => {
+        // Send streaming text updates to the renderer
+        mainWindow?.webContents.send('chat-stream', streamedText);
+      }
+    );
+    
+    mainWindow?.webContents.send('process-complete', result);
+    return result;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    mainWindow?.webContents.send('process-error', errorMsg);
+    throw error;
+  }
+});
+
+ipcMain.handle('update-report', async (_event, ticker: string) => {
+  try {
+    agentManager.setOutputHandler((type, data) => {
+      mainWindow?.webContents.send('docker-output', { type, data });
+    });
+    
+    const result = await agentManager.updateReport(ticker);
     
     mainWindow?.webContents.send('process-complete', result);
     return result;
@@ -180,6 +210,37 @@ ipcMain.handle('read-report', async (_event, path: string) => {
     return content;
   } catch (error) {
     console.error('Error reading report:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('export-report', async (_event, reportPath: string) => {
+  try {
+    if (!mainWindow) return null;
+    
+    // Extract the report filename for default save name
+    const filename = reportPath.split('/').pop() || 'report.md';
+    
+    // Show save dialog
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Export Report',
+      defaultPath: filename,
+      filters: [
+        { name: 'Markdown files', extensions: ['md'] },
+        { name: 'All files', extensions: ['*'] }
+      ]
+    });
+    
+    if (result.canceled || !result.filePath) {
+      return null;
+    }
+    
+    // Copy the report file to the chosen location
+    await copyFile(reportPath, result.filePath);
+    
+    return result.filePath;
+  } catch (error) {
+    console.error('Error exporting report:', error);
     throw error;
   }
 });

@@ -20,6 +20,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   runChat: (ticker: string, message: string, reportPath?: string): Promise<string> => 
     ipcRenderer.invoke('run-chat', ticker, message, reportPath),
   
+  // Update report from chat session
+  updateReport: (ticker: string): Promise<string> => 
+    ipcRenderer.invoke('update-report', ticker),
+  
   // Report management
   getReports: (): Promise<Report[]> => 
     ipcRenderer.invoke('get-reports'),
@@ -29,6 +33,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   readReport: (path: string): Promise<string> => 
     ipcRenderer.invoke('read-report', path),
+  
+  exportReport: (path: string): Promise<string | null> => 
+    ipcRenderer.invoke('export-report', path),
   
   // Event listeners
   onDockerOutput: (callback: (output: DockerOutput) => void) => {
@@ -47,6 +54,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event: any, error: string) => callback(error);
     ipcRenderer.on('process-error', listener);
     return () => ipcRenderer.removeListener('process-error', listener);
+  },
+  
+  onChatStream: (callback: (text: string) => void) => {
+    const listener = (_event: any, text: string) => callback(text);
+    ipcRenderer.on('chat-stream', listener);
+    return () => ipcRenderer.removeListener('chat-stream', listener);
   }
 });
 
@@ -58,12 +71,15 @@ declare global {
       buildDockerImage: () => Promise<boolean>;
       runResearch: (request: ResearchRequest) => Promise<string>;
       runChat: (ticker: string, message: string, reportPath?: string) => Promise<string>;
+      updateReport: (ticker: string) => Promise<string>;
       getReports: () => Promise<Report[]>;
       openReport: (path: string) => Promise<void>;
       readReport: (path: string) => Promise<string>;
+      exportReport: (path: string) => Promise<string | null>;
       onDockerOutput: (callback: (output: DockerOutput) => void) => () => void;
       onProcessComplete: (callback: (result: string) => void) => () => void;
       onProcessError: (callback: (error: string) => void) => () => void;
+      onChatStream: (callback: (text: string) => void) => () => void;
     };
   }
 }
