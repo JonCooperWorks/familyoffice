@@ -288,20 +288,33 @@ export class AgentService {
         day: 'numeric' 
       });
       
-      // Set initial context with report if provided
-      let contextMessage = `Today's date is ${currentDate}.
-
-I want to chat about the stock ${ticker}. Please help me understand this stock and answer my questions about it. Be conversational but informative. You can search the web for current information.`;
+      // Load the chat prompt template
+      const promptTemplate = this.promptLoader.loadPrompt('prompt-chat-stock');
       
+      // Prepare template variables
+      const templateVars: Record<string, string> = {
+        currentDate: currentDate,
+        ticker: ticker,
+        companyName: ticker, // Default to ticker, could be enhanced with actual company name
+        tempDir: tempDir || ''
+      };
+
+      // Add report context if provided
       if (reportContent) {
-        contextMessage = `Today's date is ${currentDate}.
+        templateVars.reportContext = `- **Report Available**: Yes, a research report has been loaded for context and reference
+- **Report Content**: Use this report to provide informed analysis and reference specific sections when relevant
 
-I have a research report about ${ticker}. Here's the report:
-
+---
+## Loaded Report:
 ${reportContent}
-
-Based on this report, please help me understand the stock better and answer my questions. Reference specific parts of the report when relevant, and feel free to search for more current information if needed.`;
+---`;
+      } else {
+        templateVars.reportContext = `- **Report Available**: No specific report loaded
+- **Research Mode**: Focus on providing current information through web searches`;
       }
+
+      // Fill in the template with the provided values
+      const contextMessage = this.promptLoader.fillTemplate(promptTemplate.content, templateVars);
       
       await thread.run(contextMessage);
     }
