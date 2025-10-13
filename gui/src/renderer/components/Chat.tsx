@@ -20,6 +20,8 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
   const [sessionStarted, setSessionStarted] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
+  const [processingStatus, setProcessingStatus] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // History loading is now handled in the preloadedReport useEffect above
@@ -121,21 +123,37 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
     }]);
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCopyMessage = async (messageContent: string, messageIndex: number) => {
+    try {
+      await navigator.clipboard.writeText(messageContent);
+      setCopiedMessageIndex(messageIndex);
+      setTimeout(() => setCopiedMessageIndex(null), 2000);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      alert('Failed to copy to clipboard. Please try again.');
+    }
+  };
+
+  const handleRetryMessage = async (messageIndex: number) => {
+    if (isLoading || messageIndex === 0) return;
     
-    if (!input.trim() || isLoading) return;
+    // Find the user message that led to this assistant response
+    const userMessageIndex = messageIndex - 1;
+    const userMessage = messages[userMessageIndex];
+    
+    if (!userMessage || userMessage.role !== 'user') return;
 
-    const userMessage: ChatMessage = {
-      role: 'user',
-      content: input,
-      timestamp: new Date()
-    };
+    // Remove messages from the retry point onwards
+    const newMessages = messages.slice(0, messageIndex);
+    setMessages(newMessages);
+    
+    // Resend the user message
+    await sendMessage(userMessage.content);
+  };
 
-    const currentInput = input;
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
+  const sendMessage = async (messageContent: string) => {
     setIsLoading(true);
+    setProcessingStatus('Thinking...');
 
     // Add a placeholder assistant message that will be updated with streaming content
     const assistantMessageId = Date.now();
@@ -157,21 +175,31 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
       ));
     });
 
-    try {
-      const response = await window.electronAPI.runChat(
-        ticker.toUpperCase(),
-        currentInput,
-        reportPath || undefined
-      );
+    // Set up progress listener for status updates
+    const cleanupProgress = window.electronAPI.onDockerOutput((output) => {
+      if (output.data.includes('🔎 Searching:')) {
+        setProcessingStatus(output.data.trim());
+      } else if (output.data.includes('Search completed')) {
+        setProcessingStatus('Analyzing results...');
+      }
+    });
 
-      // Final update with complete response (in case streaming missed anything)
+    try {
+      const response = await window.electronAPI.runChat({
+        ticker,
+        message: messageContent,
+        reportPath
+      });
+
+      // Update the assistant message with the final response
       setMessages(prev => prev.map(msg => 
         (msg as any).id === assistantMessageId 
-          ? { ...msg, content: response || 'No response received.' }
+          ? { ...msg, content: response }
           : msg
       ));
+
     } catch (error) {
-      // Replace the streaming message with error
+      console.error('Chat error:', error);
       setMessages(prev => prev.map(msg => 
         (msg as any).id === assistantMessageId 
           ? { ...msg, content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` }
@@ -180,8 +208,45 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
     } finally {
       setIsLoading(false);
       setIsStreaming(false);
-      cleanupStream(); // Clean up the streaming listener
+      setProcessingStatus('');
+      cleanupStream();
+      cleanupProgress();
     }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!input.trim() || isLoading) return;
+
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: input,
+      timestamp: new Date()
+    };
+
+    const currentInput = input;
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    
+    await sendMessage(currentInput);
+  };
+
+  const handleUpdateReport = async () => {
+    if (!ticker || !reportPath || isLoading) return;
+
+    const updatePrompt = `Please update the research report with the following improvements:
+
+1. **Add New Sections**: Include any important information that may be missing from the current report
+2. **Update Existing Sections**: Refresh data, metrics, and analysis with the most current information available
+3. **Enhance Analysis**: Deepen the investment thesis and risk assessment based on recent developments
+4. **Financial Updates**: Update any financial metrics, ratios, or projections with the latest data
+5. **Market Context**: Include recent market conditions, sector trends, and competitive positioning
+6. **News Integration**: Incorporate any significant recent news or developments
+
+Please provide a comprehensive update that maintains the report's structure while enhancing its quality and relevance.`;
+
+    await sendMessage(updatePrompt);
   };
 
   const handleClearChat = () => {
@@ -269,9 +334,16 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
             <h2>familyoffice</h2>
             <div className="ticker-row">
               <p className="ticker-info">{ticker}{reportPath && ' • 📄 Report loaded'}</p>
-              <button onClick={handleClearChat} className="clear-button">
-                🗑️ Clear Chat
-              </button>
+              <div className="header-buttons">
+                {reportPath && (
+                  <button onClick={handleUpdateReport} className="update-report-button" disabled={isLoading}>
+                    📝 Update Report
+                  </button>
+                )}
+                <button onClick={handleClearChat} className="clear-button">
+                  🗑️ Clear Chat
+                </button>
+              </div>
             </div>
           </div>
           <div className="header-right">
@@ -298,6 +370,25 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
                 <span className="message-time">
                   {msg.timestamp.toLocaleTimeString()}
                 </span>
+                <div className="message-actions">
+                  <button 
+                    className="message-action-btn copy-btn"
+                    onClick={() => handleCopyMessage(msg.content, idx)}
+                    title="Copy message"
+                  >
+                    {copiedMessageIndex === idx ? '✓' : '📋'}
+                  </button>
+                  {msg.role === 'assistant' && idx > 0 && (
+                    <button 
+                      className="message-action-btn retry-btn"
+                      onClick={() => handleRetryMessage(idx)}
+                      disabled={isLoading}
+                      title="Retry this response"
+                    >
+                      🔄
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="message-content">
                 <ReactMarkdown
@@ -318,7 +409,7 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
                 </ReactMarkdown>
                 {/* Show streaming cursor for assistant messages that are being streamed */}
                 {msg.role === 'assistant' && isStreaming && (msg as any).id && (
-                  <span className="streaming-cursor">▋</span>
+                  <span className="streaming-cursor animate-pulse">▋</span>
                 )}
               </div>
             </div>
@@ -329,7 +420,12 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
                 <span className="message-role">Assistant</span>
               </div>
               <div className="message-content">
-                <span className="typing-indicator">●●●</span>
+                <div className="thinking-status">
+                  <span className="typing-indicator animate-pulse">●●●</span>
+                  <span className="status-text">
+                    {processingStatus || 'Thinking...'}
+                  </span>
+                </div>
               </div>
             </div>
           )}

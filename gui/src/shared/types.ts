@@ -56,6 +56,7 @@ export type IPCChannels =
   | 'open-report'
   | 'read-report'
   | 'export-report'
+  | 'delete-report'
   | 'docker-output'
   | 'process-complete'
   | 'process-error';

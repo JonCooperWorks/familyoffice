@@ -48,6 +48,29 @@ function Reports({ onOpenReport, onChat }: ReportsProps) {
     onOpenReport(report.path);
   };
 
+  const handleDelete = async (report: Report) => {
+    const confirmMessage = `Are you sure you want to delete the ${report.type} report for ${report.ticker}?\n\nThis action cannot be undone.`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const success = await window.electronAPI.deleteReport(report.path);
+      
+      if (success) {
+        // Remove the report from the local state immediately
+        setReports(prevReports => prevReports.filter(r => r.path !== report.path));
+        console.log('Report deleted successfully:', report.filename);
+      } else {
+        alert('Failed to delete the report. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      alert('An error occurred while deleting the report. Please try again.');
+    }
+  };
+
   const handleStartResearch = async (mode: 'new' | 'reevaluate', reportPath?: string, tickerOverride?: string) => {
     const effectiveTicker = tickerOverride || ticker;
     
@@ -302,6 +325,13 @@ function Reports({ onOpenReport, onChat }: ReportsProps) {
                   title="Chat with this report"
                 >
                   Chat
+                </button>
+                <button
+                  onClick={() => handleDelete(report)}
+                  className="action-button delete"
+                  title="Delete this report"
+                >
+                  🗑️
                 </button>
               </div>
             </div>

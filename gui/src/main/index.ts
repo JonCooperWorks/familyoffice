@@ -226,6 +226,29 @@ ipcMain.handle('open-report', async (_event, path: string) => {
   await shell.openPath(path);
 });
 
+ipcMain.handle('delete-report', async (_event, reportPath: string): Promise<boolean> => {
+  try {
+    const fs = await import('fs/promises');
+    
+    // Check if file exists
+    try {
+      await fs.access(reportPath);
+    } catch {
+      console.log('Report file does not exist:', reportPath);
+      return true; // File doesn't exist, consider it "deleted"
+    }
+    
+    // Delete the file
+    await fs.unlink(reportPath);
+    console.log('Successfully deleted report:', reportPath);
+    
+    return true;
+  } catch (error) {
+    console.error('Error deleting report:', error);
+    return false;
+  }
+});
+
 ipcMain.handle('read-report', async (_event, path: string) => {
   try {
     const content = await readFile(path, 'utf-8');

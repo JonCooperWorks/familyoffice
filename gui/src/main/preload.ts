@@ -37,6 +37,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportReport: (path: string, htmlContent: string): Promise<string | null> => 
     ipcRenderer.invoke('export-report', path, htmlContent),
   
+  deleteReport: (reportPath: string): Promise<boolean> => 
+    ipcRenderer.invoke('delete-report', reportPath),
+  
   // Event listeners
   onDockerOutput: (callback: (output: DockerOutput) => void) => {
     const listener = (_event: any, output: DockerOutput) => callback(output);
@@ -76,6 +79,7 @@ declare global {
       openReport: (path: string) => Promise<void>;
       readReport: (path: string) => Promise<string>;
       exportReport: (path: string, htmlContent: string) => Promise<string | null>;
+      deleteReport: (reportPath: string) => Promise<boolean>;
       onDockerOutput: (callback: (output: DockerOutput) => void) => () => void;
       onProcessComplete: (callback: (result: string) => void) => () => void;
       onProcessError: (callback: (error: string) => void) => () => void;
