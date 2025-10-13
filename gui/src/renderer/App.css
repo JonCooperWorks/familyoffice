@@ -67,7 +67,9 @@
 
 .app-content {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   padding: 30px;
+  display: flex;
+  flex-direction: column;
 }
 

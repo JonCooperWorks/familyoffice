@@ -1,6 +1,10 @@
 .reports {
   max-width: 1200px;
   margin: 0 auto;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .reports.loading {
@@ -102,6 +106,8 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 20px;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .report-card {
