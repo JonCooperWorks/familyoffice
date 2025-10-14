@@ -300,20 +300,55 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
   };
 
   const handleUpdateReport = async () => {
-    if (!ticker || !reportPath || isLoading) return;
+    if (!ticker || !reportPath || isLoading) {
+      console.log(`🚫 [DEBUG] handleUpdateReport blocked: ticker=${ticker}, reportPath=${reportPath}, isLoading=${isLoading}`);
+      return;
+    }
 
-    const updatePrompt = `Please update the research report with the following improvements:
+    console.log(`🔄 [DEBUG] handleUpdateReport starting for ticker: ${ticker}`);
+    setIsLoading(true);
+    setProcessingStatus('Updating report...');
 
-1. **Add New Sections**: Include any important information that may be missing from the current report
-2. **Update Existing Sections**: Refresh data, metrics, and analysis with the most current information available
-3. **Enhance Analysis**: Deepen the investment thesis and risk assessment based on recent developments
-4. **Financial Updates**: Update any financial metrics, ratios, or projections with the latest data
-5. **Market Context**: Include recent market conditions, sector trends, and competitive positioning
-6. **News Integration**: Incorporate any significant recent news or developments
+    // Set up progress listener
+    const cleanupProgress = window.electronAPI.onDockerOutput((output) => {
+      if (output.data.includes('[DEBUG]') || output.data.includes('🔎') || output.data.includes('💭') || output.data.includes('⚙️')) {
+        setProcessingStatus(output.data.trim());
+        console.log(`🔊 [PROGRESS] ${output.data.trim()}`);
+      }
+    });
 
-Please provide a comprehensive update that maintains the report's structure while enhancing its quality and relevance.`;
-
-    await sendMessage(updatePrompt);
+    try {
+      // Get chat history from current messages
+      const chatHistoryForUpdate = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp.toISOString()
+      }));
+      
+      console.log(`📞 [DEBUG] Calling window.electronAPI.updateReport('${ticker}') with ${chatHistoryForUpdate.length} messages`);
+      const updatedReportPath = await window.electronAPI.updateReport(ticker, chatHistoryForUpdate);
+      
+      console.log(`✅ [DEBUG] updateReport success, new report path: ${updatedReportPath}`);
+      
+      // Reload the current report content to see if it was updated
+      await loadReport();
+      
+      // Show success status briefly
+      setProcessingStatus('✅ Report updated successfully!');
+      setTimeout(() => setProcessingStatus(''), 3000);
+      
+    } catch (error) {
+      console.error(`❌ [DEBUG] handleUpdateReport error:`, error);
+      
+      // Show error status
+      setProcessingStatus(`❌ Update failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setTimeout(() => setProcessingStatus(''), 5000);
+    } finally {
+      setIsLoading(false);
+      setProcessingStatus('');
+      cleanupProgress();
+      console.log(`🏁 [DEBUG] handleUpdateReport finished for ticker: ${ticker}`);
+    }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {

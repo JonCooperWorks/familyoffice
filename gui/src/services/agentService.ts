@@ -381,55 +381,192 @@ ${reportContent}
     return finalResponse;
   }
 
-  async updateReport(ticker: string, onProgress?: (message: string) => void): Promise<string> {
-    // Get the existing chat thread for this ticker
-    const thread = this.threads.get(`chat-${ticker}`);
+  async updateReport(ticker: string, chatHistory?: Array<{role: string, content: string, timestamp: string}>, onProgress?: (message: string) => void): Promise<string> {
+    console.log(`\n🔄 [DEBUG] Starting updateReport for ticker: ${ticker}`);
+    console.log(`💬 [DEBUG] Chat history provided: ${chatHistory ? chatHistory.length : 0} messages`);
+    onProgress?.(`updating ${ticker} report`);
     
-    if (!thread) {
-      throw new Error(`No active chat session found for ${ticker}. Start a chat first before updating the report.`);
+    // Always create a fresh thread for report updates to avoid thread management issues
+    console.log(`🔧 [DEBUG] Creating fresh thread for report update...`);
+    onProgress?.(`Creating fresh research session...`);
+    
+    let thread: Thread | undefined;
+    
+    // Create a temp directory for this update session
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    
+    // Use app data directory for temp files
+    const tempBaseDir = app.isPackaged 
+      ? join(app.getPath('userData'), 'temp')
+      : join(__dirname, '../../../temp');
+    
+    const tempDir = join(tempBaseDir, `${ticker}-update-${timestamp}`);
+    await mkdir(tempDir, { recursive: true });
+    
+    console.log(`📁 [DEBUG] Created temp directory: ${tempDir}`);
+    onProgress?.(`Setting up research environment...`);
+    
+    // Create a new thread for this update session
+    console.log(`🔧 [DEBUG] Creating thread for one-shot update...`);
+    try {
+      thread = this.codex.startThread({
+        ...(this.model && { model: this.model }),
+        workingDirectory: tempDir,
+        skipGitRepoCheck: true,
+        sandboxMode: 'danger-full-access',
+      });
+      
+      console.log(`✅ [DEBUG] Thread created successfully`);
+      onProgress?.(`Connected to AI research agent...`);
+    } catch (threadError) {
+      const errorMsg = `Thread creation failed: ${threadError instanceof Error ? threadError.message : 'Unknown error'}`;
+      console.error(`❌ [DEBUG] ${errorMsg}`, threadError);
+      onProgress?.(`❌ ${errorMsg}`);
+      throw new Error(errorMsg);
     }
 
-    // Ask the thread to generate an updated comprehensive report
-    const updatePrompt = `Based on our conversation so far, please generate a comprehensive updated research report about ${ticker}. 
+    if (!thread) {
+      throw new Error('Thread creation failed - thread is null');
+    }
 
-The report should:
-- Incorporate all the insights and information we've discussed
-- Include any new information you've found during our conversation
-- Be well-structured with clear sections
-- Maintain a professional, analytical tone
-- Include specific data points, metrics, and analysis
+    console.log(`✅ [DEBUG] Thread ready for ${ticker}, thread ID: ${thread?.id || 'undefined'}`);
+    onProgress?.(`Generating updated research report...`);
 
-Please provide the complete updated report now.`;
+    // Build the chat history section if available
+    let chatHistorySection = '';
+    if (chatHistory && chatHistory.length > 0) {
+      chatHistorySection = `## Chat Conversation History
 
-    const { events } = await thread.runStreamed(updatePrompt);
+The following is our complete conversation about ${ticker}:
+
+---
+`;
+      
+      chatHistory.forEach((message) => {
+        const role = message.role === 'user' ? 'User' : 'Assistant';
+        const timestamp = new Date(message.timestamp).toLocaleString();
+        chatHistorySection += `**${role}** (${timestamp}):\n${message.content}\n\n---\n`;
+      });
+      
+      chatHistorySection += `\n`;
+    }
+
+    // Load the update report prompt template
+    const promptTemplate = this.promptLoader.loadPrompt('prompt-update-report');
+    
+    // Get current date in readable format
+    const currentDate = new Date().toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    
+    // Fill in the template with the provided values
+    const updatePrompt = this.promptLoader.fillTemplate(promptTemplate.content, {
+      ticker: ticker,
+      currentDate: currentDate,
+      tempDir: './temp',
+      chatHistorySection: chatHistorySection
+    });
+
+    console.log(`📝 [DEBUG] Sending update prompt to thread (${updatePrompt.length} characters)`);
+    onProgress?.(`Starting research analysis...`);
+
+    try {
+      console.log(`🚀 [DEBUG] Starting thread.runStreamed with prompt length: ${updatePrompt.length}`);
+      const { events } = await thread.runStreamed(updatePrompt);
     
     let finalResponse = '';
+      let eventCount = 0;
+      let hasResponse = false;
+      
+      console.log(`🚀 [DEBUG] Starting to process events...`);
+      onProgress?.(`🚀 [DEBUG] Starting to process events...`);
     
     for await (const event of events) {
+        eventCount++;
+        
+        if (this.debug) {
+          console.log(`📊 [DEBUG] Event ${eventCount}: ${event.type}`);
+        }
+        
       switch (event.type) {
         case 'item.started':
           if (event.item.type === 'web_search') {
-            onProgress?.(`🔎 Searching: ${event.item.query}...`);
+              const searchMsg = `🔎 Searching: ${event.item.query}...`;
+              console.log(`  ${searchMsg}`);
+              onProgress?.(searchMsg);
+            } else if (event.item.type === 'reasoning') {
+              console.log(`  💭 [DEBUG] Agent is thinking...`);
+              onProgress?.(`Analyzing data...`);
+            } else if (event.item.type === 'command_execution') {
+              console.log(`  ⚙️  [DEBUG] Executing command: ${event.item.command}`);
+              onProgress?.(`Processing information...`);
+            } else if (this.debug) {
+              console.log(`  ⚙️  [DEBUG] Item started: ${event.item.type}`);
+              onProgress?.(`Processing ${event.item.type}...`);
           }
           break;
         case 'item.updated':
         case 'item.completed':
           if (event.item.type === 'agent_message') {
             finalResponse = event.item.text;
-          } else if (event.item.type === 'web_search') {
+              hasResponse = true;
+              console.log(`📄 [DEBUG] Agent message ${event.type}: ${finalResponse.length} characters`);
+              onProgress?.(`Report generation in progress...`);
+            } else if (event.item.type === 'web_search' && event.type === 'item.completed') {
+              console.log(`  ✅ [DEBUG] Search completed`);
             onProgress?.('Search completed');
+            } else if (event.item.type === 'reasoning' && event.type === 'item.completed') {
+              console.log(`  💭 [DEBUG] Thinking completed: ${event.item.text.substring(0, 100)}...`);
+              onProgress?.(`Analysis completed`);
+            }
+            break;
+          case 'turn.completed':
+            console.log(`✅ [DEBUG] Turn completed successfully!`);
+            onProgress?.(`Report generation completed`);
+            if (event.usage) {
+              console.log(`   📊 [DEBUG] Token usage: ${event.usage.input_tokens} in, ${event.usage.output_tokens} out`);
           }
           break;
         case 'turn.failed':
-          throw new Error(`Report update failed: ${event.error.message}`);
+            const errorMsg = `Report update failed: ${event.error.message}`;
+            console.error(`❌ [DEBUG] ${errorMsg}`);
+            onProgress?.(`❌ ${errorMsg}`);
+            throw new Error(errorMsg);
+        }
+      }
+      
+      console.log(`📊 [DEBUG] Processed ${eventCount} events total`);
+      console.log(`📄 [DEBUG] Final response: ${hasResponse ? 'RECEIVED' : 'MISSING'} (${finalResponse.length} chars)`);
+      onProgress?.(`Finalizing report...`);
+      
+      if (!hasResponse || !finalResponse) {
+        const errorMsg = 'No updated report generated. Please try again.';
+        console.error(`❌ [DEBUG] ${errorMsg}`);
+        onProgress?.(`❌ ${errorMsg}`);
+        throw new Error(errorMsg);
+      }
+      
+      console.log(`✅ [DEBUG] updateReport completed successfully for ${ticker}`);
+      onProgress?.(`Report update completed successfully`);
+      return finalResponse;
+    } catch (error) {
+      console.error(`❌ [DEBUG] updateReport failed for ${ticker}:`, error);
+      onProgress?.(`❌ Report update failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
+    } finally {
+      // Clean up the temporary thread
+      if (thread) {
+        try {
+          console.log(`🧹 [DEBUG] Cleaning up temporary thread for ${ticker}`);
+          // Note: We don't store this thread in the threads map since it's temporary
+        } catch (cleanupError) {
+          console.log(`⚠️ [DEBUG] Thread cleanup warning: ${cleanupError}`);
+        }
       }
     }
-    
-    if (!finalResponse) {
-      throw new Error('No updated report generated. Please try again.');
-    }
-    
-    return finalResponse;
   }
 
   getThreadId(key: string): string | null {

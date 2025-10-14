@@ -233,20 +233,91 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
   };
 
   const handleUpdateReport = async () => {
-    if (!ticker || !reportPath || isLoading) return;
+    if (!ticker || !reportPath || isLoading) {
+      console.log(`🚫 [DEBUG] handleUpdateReport blocked: ticker=${ticker}, reportPath=${reportPath}, isLoading=${isLoading}`);
+      return;
+    }
 
-    const updatePrompt = `Please update the research report with the following improvements:
+    console.log(`🔄 [DEBUG] handleUpdateReport starting for ticker: ${ticker}`);
+    setIsLoading(true);
+    setProcessingStatus('Updating report...');
 
-1. **Add New Sections**: Include any important information that may be missing from the current report
-2. **Update Existing Sections**: Refresh data, metrics, and analysis with the most current information available
-3. **Enhance Analysis**: Deepen the investment thesis and risk assessment based on recent developments
-4. **Financial Updates**: Update any financial metrics, ratios, or projections with the latest data
-5. **Market Context**: Include recent market conditions, sector trends, and competitive positioning
-6. **News Integration**: Incorporate any significant recent news or developments
+    // Add a system message to show that report update is starting
+    const systemMessage: ChatMessage = {
+      role: 'assistant',
+      content: `🔄 Starting report update for ${ticker}...`,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, systemMessage]);
 
-Please provide a comprehensive update that maintains the report's structure while enhancing its quality and relevance.`;
+    // Set up progress listener
+    const cleanupProgress = window.electronAPI.onDockerOutput((output) => {
+      if (output.data.includes('[DEBUG]') || output.data.includes('🔎') || output.data.includes('💭') || output.data.includes('⚙️')) {
+        setProcessingStatus(output.data.trim());
+        console.log(`🔊 [PROGRESS] ${output.data.trim()}`);
+      }
+    });
 
-    await sendMessage(updatePrompt);
+    try {
+      // Get chat history from current messages
+      const chatHistoryForUpdate = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp.toISOString()
+      }));
+      
+      console.log(`📞 [DEBUG] Calling window.electronAPI.updateReport('${ticker}') with ${chatHistoryForUpdate.length} messages`);
+      const updatedReportPath = await window.electronAPI.updateReport(ticker, chatHistoryForUpdate);
+      
+      console.log(`✅ [DEBUG] updateReport success, new report path: ${updatedReportPath}`);
+      
+      // Add success message to chat
+      const successMessage: ChatMessage = {
+        role: 'assistant',
+        content: `✅ **Report Updated Successfully!**
+
+Your research report for ${ticker} has been updated and saved to:
+\`${updatedReportPath}\`
+
+The updated report incorporates:
+- Latest market data and analysis
+- New insights from our conversation
+- Enhanced financial metrics and projections
+- Recent news and developments
+- Improved investment thesis and risk assessment
+
+You can find the updated report in the Reports section.`,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, successMessage]);
+      
+    } catch (error) {
+      console.error(`❌ [DEBUG] handleUpdateReport error:`, error);
+      
+      // Add error message to chat
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: `❌ **Report Update Failed**
+
+Error: ${error instanceof Error ? error.message : 'Unknown error'}
+
+Debug information:
+- Ticker: ${ticker}
+- Report Path: ${reportPath}
+- Error Details: ${JSON.stringify(error)}
+
+Please ensure you have an active chat session before trying to update the report. You may need to send a few messages first to establish context.`,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+      setProcessingStatus('');
+      cleanupProgress();
+      console.log(`🏁 [DEBUG] handleUpdateReport finished for ticker: ${ticker}`);
+    }
   };
 
   const handleClearChat = () => {

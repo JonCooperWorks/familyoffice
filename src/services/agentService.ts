@@ -348,56 +348,169 @@ ${reportContent}
     return finalResponse;
   }
 
-  async updateReport(ticker: string): Promise<string> {
-    // Get the existing chat thread for this ticker
-    const thread = this.threads.get(`chat-${ticker}`);
+  async updateReport(ticker: string, chatHistory?: Array<{role: string, content: string, timestamp: string}>): Promise<string> {
+    console.log(`\nupdating ${ticker} report`);
+    console.log(`💬 [DEBUG] Chat history provided: ${chatHistory ? chatHistory.length : 0} messages`);
     
-    if (!thread) {
-      throw new Error(`No active chat session found for ${ticker}. Start a chat first before updating the report.`);
+    // Always create a fresh thread for report updates to avoid thread management issues
+    console.log(`🔧 [DEBUG] Creating fresh thread for report update...`);
+    
+    let thread: Thread | undefined;
+    
+    try {
+      // Create a temp directory for this update session
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const tempDir = `./temp/${ticker}-update-${timestamp}`;
+      const fs = await import('fs/promises');
+      await fs.mkdir(tempDir, { recursive: true });
+      
+      console.log(`📁 [DEBUG] Created temp directory: ${tempDir}`);
+      
+      // Create a new thread for this update session
+      thread = this.codex.startThread({
+        ...(this.model && { model: this.model }),
+        workingDirectory: tempDir,
+        skipGitRepoCheck: true,
+        sandboxMode: 'danger-full-access',
+      });
+      
+      if (!thread || !thread.id) {
+        const errorMsg = `Failed to create AI thread for ${ticker}. Please check your Codex authentication.`;
+        console.error(`❌ [DEBUG] ${errorMsg} - Thread object:`, thread);
+        throw new Error(errorMsg);
+      }
+      
+      console.log(`✅ [DEBUG] Created fresh thread for ${ticker}, thread ID: ${thread.id}`);
+      
+    } catch (error) {
+      const errorMsg = `Failed to create AI thread: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      console.error(`❌ [DEBUG] ${errorMsg}`);
+      throw new Error(errorMsg);
     }
 
-    // Ask the thread to generate an updated comprehensive report
-    const updatePrompt = `Based on our conversation so far, please generate a comprehensive updated research report about ${ticker}. 
+    console.log(`✅ [DEBUG] Thread ready for ${ticker}, thread ID: ${thread.id}`);
 
-The report should:
-- Incorporate all the insights and information we've discussed
-- Include any new information you've found during our conversation
-- Be well-structured with clear sections
-- Maintain a professional, analytical tone
-- Include specific data points, metrics, and analysis
+    // Build the chat history section if available
+    let chatHistorySection = '';
+    if (chatHistory && chatHistory.length > 0) {
+      chatHistorySection = `## Chat Conversation History
 
-Please provide the complete updated report now.`;
+The following is our complete conversation about ${ticker}:
 
-    const { events } = await thread.runStreamed(updatePrompt);
+---
+`;
+      
+      chatHistory.forEach((message) => {
+        const role = message.role === 'user' ? 'User' : 'Assistant';
+        const timestamp = new Date(message.timestamp).toLocaleString();
+        chatHistorySection += `**${role}** (${timestamp}):\n${message.content}\n\n---\n`;
+      });
+      
+      chatHistorySection += `\n`;
+    }
+
+    // Load the update report prompt template
+    const promptTemplate = this.promptLoader.loadPrompt('prompt-update-report');
     
-    let finalResponse = '';
+    // Get current date in readable format
+    const currentDate = new Date().toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
     
-    for await (const event of events) {
-      switch (event.type) {
-        case 'item.started':
-        case 'item.updated':
-        case 'item.completed':
-          if (event.item.type === 'agent_message') {
-            finalResponse = event.item.text;
-          } else if (event.item.type === 'web_search') {
-            process.stdout.write(`  🔎 Searching: ${event.item.query}...`);
-          }
-          break;
-        case 'item.completed':
-          if (event.item.type === 'web_search') {
-            process.stdout.write(' Done\n');
-          }
-          break;
-        case 'turn.failed':
-          throw new Error(`Report update failed: ${event.error.message}`);
+    // Fill in the template with the provided values
+    const updatePrompt = this.promptLoader.fillTemplate(promptTemplate.content, {
+      ticker: ticker,
+      currentDate: currentDate,
+      tempDir: './temp',
+      chatHistorySection: chatHistorySection
+    });
+
+    console.log(`📝 [DEBUG] Sending update prompt to thread (${updatePrompt.length} characters)`);
+
+    try {
+      const { events } = await thread.runStreamed(updatePrompt);
+      
+      let finalResponse = '';
+      let eventCount = 0;
+      let hasResponse = false;
+      
+      console.log(`🚀 [DEBUG] Starting to process events...`);
+      
+      for await (const event of events) {
+        eventCount++;
+        
+        if (this.debug) {
+          console.log(`📊 [DEBUG] Event ${eventCount}: ${event.type}`);
+        }
+        
+        switch (event.type) {
+          case 'item.started':
+            if (event.item.type === 'web_search') {
+              const searchMsg = `🔎 Searching: ${event.item.query}...`;
+              console.log(`  ${searchMsg}`);
+              process.stdout.write(`  ${searchMsg}`);
+            } else if (event.item.type === 'reasoning') {
+              console.log(`  💭 [DEBUG] Agent is thinking...`);
+            } else if (event.item.type === 'command_execution') {
+              console.log(`  ⚙️  [DEBUG] Executing command: ${event.item.command}`);
+            } else if (this.debug) {
+              console.log(`  ⚙️  [DEBUG] Item started: ${event.item.type}`);
+            }
+            break;
+          case 'item.updated':
+          case 'item.completed':
+            if (event.item.type === 'agent_message') {
+              finalResponse = event.item.text;
+              hasResponse = true;
+              console.log(`📄 [DEBUG] Agent message ${event.type}: ${finalResponse.length} characters`);
+            } else if (event.item.type === 'web_search' && event.type === 'item.completed') {
+              console.log(`  ✅ [DEBUG] Search completed`);
+              process.stdout.write(' Done\n');
+            } else if (event.item.type === 'reasoning' && event.type === 'item.completed') {
+              console.log(`  💭 [DEBUG] Thinking completed: ${event.item.text.substring(0, 100)}...`);
+            }
+            break;
+          case 'turn.completed':
+            console.log(`✅ [DEBUG] Turn completed successfully!`);
+            if (event.usage) {
+              console.log(`   📊 [DEBUG] Token usage: ${event.usage.input_tokens} in, ${event.usage.output_tokens} out`);
+            }
+            break;
+          case 'turn.failed':
+            const errorMsg = `Report update failed: ${event.error.message}`;
+            console.error(`❌ [DEBUG] ${errorMsg}`);
+            throw new Error(errorMsg);
+        }
+      }
+      
+      console.log(`📊 [DEBUG] Processed ${eventCount} events total`);
+      console.log(`📄 [DEBUG] Final response: ${hasResponse ? 'RECEIVED' : 'MISSING'} (${finalResponse.length} chars)`);
+      
+      if (!hasResponse || !finalResponse) {
+        const errorMsg = 'No updated report generated. Please try again.';
+        console.error(`❌ [DEBUG] ${errorMsg}`);
+        throw new Error(errorMsg);
+      }
+      
+      console.log(`✅ [DEBUG] updateReport completed successfully for ${ticker}`);
+      return finalResponse;
+    } catch (error) {
+      console.error(`❌ [DEBUG] updateReport failed for ${ticker}:`, error);
+      throw error;
+    } finally {
+      // Clean up the temporary thread
+      if (thread) {
+        try {
+          console.log(`🧹 [DEBUG] Cleaning up temporary thread for ${ticker}`);
+          // Note: We don't store this thread in the threads map since it's temporary
+        } catch (cleanupError) {
+          console.log(`⚠️ [DEBUG] Thread cleanup warning: ${cleanupError}`);
+        }
       }
     }
-    
-    if (!finalResponse) {
-      throw new Error('No updated report generated. Please try again.');
-    }
-    
-    return finalResponse;
   }
 
   getThreadId(key: string): string | null {

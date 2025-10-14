@@ -21,8 +21,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('run-chat', ticker, message, reportPath),
   
   // Update report from chat session
-  updateReport: (ticker: string): Promise<string> => 
-    ipcRenderer.invoke('update-report', ticker),
+  updateReport: (ticker: string, chatHistory?: any[]): Promise<string> => 
+    ipcRenderer.invoke('update-report', ticker, chatHistory),
   
   // Report management
   getReports: (): Promise<Report[]> => 
@@ -74,7 +74,7 @@ declare global {
       buildDockerImage: () => Promise<boolean>;
       runResearch: (request: ResearchRequest) => Promise<string>;
       runChat: (ticker: string, message: string, reportPath?: string) => Promise<string>;
-      updateReport: (ticker: string) => Promise<string>;
+      updateReport: (ticker: string, chatHistory?: any[]) => Promise<string>;
       getReports: () => Promise<Report[]>;
       openReport: (path: string) => Promise<void>;
       readReport: (path: string) => Promise<string>;

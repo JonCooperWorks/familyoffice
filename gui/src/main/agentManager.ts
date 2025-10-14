@@ -163,25 +163,42 @@ export class AgentManager {
     }
   }
 
-  async updateReport(ticker: string): Promise<string> {
+  async updateReport(ticker: string, chatHistory?: any[]): Promise<string> {
+    console.log(`\n🔄 [AGENT_MANAGER DEBUG] Starting updateReport for ticker: ${ticker}`);
+    console.log(`📚 [AGENT_MANAGER DEBUG] Chat history: ${chatHistory ? `${chatHistory.length} messages` : 'none provided'}`);
+    this.logOutput(`🔄 [AGENT_MANAGER DEBUG] Starting updateReport for ticker: ${ticker}`);
+    
     try {
+      console.log(`📞 [AGENT_MANAGER DEBUG] Calling agent.updateReport('${ticker}', chatHistory)`);
       const result = await this.agent.updateReport(
         ticker,
-        (message) => this.logOutput(message)
+        chatHistory,
+        (message) => {
+          console.log(`📊 [AGENT_MANAGER DEBUG] Progress: ${message}`);
+          this.logOutput(message);
+        }
       );
+
+      console.log(`📄 [AGENT_MANAGER DEBUG] Received result: ${result.length} characters`);
 
       // Clean up result - remove any leading asterisks or markdown artifacts
       const cleanResult = result.replace(/^\*+/, '').trim();
+      
+      console.log(`🧹 [AGENT_MANAGER DEBUG] Cleaned result: ${cleanResult.length} characters`);
       
       // Generate output filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const outputFile = `research-${ticker}-${timestamp}.md`;
       const reportsDir = join(this.projectRoot, 'reports');
       
+      console.log(`📁 [AGENT_MANAGER DEBUG] Target directory: ${reportsDir}`);
+      console.log(`📄 [AGENT_MANAGER DEBUG] Output filename: ${outputFile}`);
+      
       // Ensure reports directory exists
       await mkdir(reportsDir, { recursive: true });
       
       const fullPath = join(reportsDir, outputFile);
+      console.log(`📍 [AGENT_MANAGER DEBUG] Full path: ${fullPath}`);
       
       // Prepare the full report
       const fullReport = [
@@ -200,14 +217,19 @@ export class AgentManager {
         `*Updated during chat session*`
       ].join('\n');
       
+      console.log(`📝 [AGENT_MANAGER DEBUG] Writing report: ${fullReport.length} characters`);
+      
       // Write to file
       await writeFile(fullPath, fullReport);
       
+      console.log(`✅ [AGENT_MANAGER DEBUG] Successfully wrote file: ${fullPath}`);
       this.logOutput(`✅ Updated report saved to: ${outputFile}`);
       
       return fullPath;
     } catch (error) {
       const errorMsg = `Report update failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      console.error(`❌ [AGENT_MANAGER DEBUG] ${errorMsg}`);
+      console.error(`❌ [AGENT_MANAGER DEBUG] Error details:`, error);
       this.logOutput(errorMsg);
       throw new Error(errorMsg);
     }

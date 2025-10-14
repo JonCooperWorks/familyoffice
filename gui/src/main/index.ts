@@ -154,18 +154,30 @@ ipcMain.handle('run-chat', async (_event, ticker: string, message: string, repor
   }
 });
 
-ipcMain.handle('update-report', async (_event, ticker: string) => {
+ipcMain.handle('update-report', async (_event, ticker: string, chatHistory?: any[]) => {
+  console.log(`\n🔄 [IPC DEBUG] Received update-report request for ticker: ${ticker}`);
+  console.log(`📚 [IPC DEBUG] Chat history provided: ${chatHistory ? `${chatHistory.length} messages` : 'none'}`);
+  
   try {
+    console.log(`📡 [IPC DEBUG] Setting up output handler`);
     agentManager.setOutputHandler((type, data) => {
+      console.log(`📊 [IPC DEBUG] Sending docker-output: ${type} - ${data}`);
       mainWindow?.webContents.send('docker-output', { type, data });
     });
     
-    const result = await agentManager.updateReport(ticker);
+    console.log(`📞 [IPC DEBUG] Calling agentManager.updateReport('${ticker}', chatHistory)`);
+    const result = await agentManager.updateReport(ticker, chatHistory);
     
+    console.log(`✅ [IPC DEBUG] updateReport successful, result: ${result}`);
+    console.log(`📡 [IPC DEBUG] Sending process-complete event`);
     mainWindow?.webContents.send('process-complete', result);
+    
     return result;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`❌ [IPC DEBUG] updateReport failed:`, error);
+    console.error(`❌ [IPC DEBUG] Error message: ${errorMsg}`);
+    console.log(`📡 [IPC DEBUG] Sending process-error event`);
     mainWindow?.webContents.send('process-error', errorMsg);
     throw error;
   }
