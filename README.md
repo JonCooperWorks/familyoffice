@@ -10,9 +10,11 @@ A modern desktop application powered by **OpenAI Codex** that provides comprehen
 - **💬 Interactive Chat**: Real-time conversations about stocks with context-aware AI
 - **📁 Report Management**: Browse, search, and organize your research reports
 - **🔄 Report Reevaluation**: Update existing reports with latest data and insights
+- **✅ Quality Checker**: Automated quality control pass to fix links, citations, and formatting
 - **📤 Export Functionality**: Export reports as markdown files for external use
 - **🎨 Modern UI**: Clean, intuitive interface built with Electron and React
 - **📱 Cross-Platform**: Works on macOS, Windows, and Linux
+- **🏗️ Modular Architecture**: One specialized agent per prompt for maintainability
 
 ## Screenshots
 
@@ -94,6 +96,23 @@ That's it! The application will launch with a clean interface ready for stock re
 - **Search & Filter**: Find reports by ticker symbol or company name
 - **Export Reports**: Click the export button to save reports as markdown files
 - **Reevaluate**: Update existing reports with the latest data and market conditions
+- **Quality Check**: Run automated quality control to fix citations, links, and formatting
+
+### Quality Checker (NEW)
+
+The quality checker agent performs automated quality control on research reports:
+
+- ✅ Checks for unanswered questions and placeholder text
+- 🔗 Fixes file references to use full SEC EDGAR URLs
+- 📝 Ensures consistent formatting (headers, bullets, markdown)
+- 📚 Verifies all claims have proper source citations
+- 🎯 Performs consistency checks (dates, names, URLs)
+- ✨ Makes reports publication-ready
+
+**CLI Usage:**
+```bash
+npm run cli check ASTS --report reports/research-ASTS-2025-10-12T15-18-48.md
+```
 
 ## 🔒 Security
 
@@ -194,16 +213,54 @@ familyoffice/
 │   │   │   │   └── MarkdownViewer.tsx # Report display
 │   │   │   └── App.tsx            # Main application component
 │   │   ├── shared/                # Shared types and interfaces
-│   │   └── services/              # Business logic services
+│   │   ├── services/              # Business logic services
+│   │   │   ├── agentService.ts    # Main orchestration service
+│   │   │   └── agents/            # Individual agent classes
+│   │   │       ├── BaseAgent.ts           # Common functionality
+│   │   │       ├── ResearchAgent.ts       # Research reports
+│   │   │       ├── ReevaluationAgent.ts   # Report updates
+│   │   │       ├── ChatAgent.ts           # Interactive chat
+│   │   │       ├── UpdateAgent.ts         # Chat-to-report
+│   │   │       └── CheckerAgent.ts        # Quality control
 │   ├── prompts/                   # AI prompt templates
+│   │   ├── prompt-research-stock.md
+│   │   ├── prompt-reevaluate-stock.md
+│   │   ├── prompt-chat-stock.md
+│   │   ├── prompt-update-report.md
+│   │   └── prompt-checker-pass.md  # NEW
 │   ├── dist/                      # Built application files
 │   └── package.json
-├── src/                           # Legacy CLI code
+├── src/                           # CLI code (refactored)
+│   ├── agents/                    # Agent classes
+│   │   ├── BaseAgent.ts           # Common functionality
+│   │   ├── ResearchAgent.ts       # Research reports
+│   │   ├── ReevaluationAgent.ts   # Report updates
+│   │   ├── ChatAgent.ts           # Interactive chat
+│   │   ├── UpdateAgent.ts         # Chat-to-report
+│   │   ├── CheckerAgent.ts        # Quality control (NEW)
+│   │   └── index.ts               # Agent exports
+│   ├── services/
+│   │   └── agentService.ts        # Main orchestration service
+│   └── cli.ts                     # CLI interface
+├── prompts/                       # AI prompt templates (5 prompts)
 ├── reports/                       # Generated research outputs
 ├── scripts/                       # Docker management scripts
+├── AGENTS.md                      # Agent architecture docs (NEW)
 ├── Dockerfile                     # Container definition
 └── docker-compose.yml            # Container orchestration
 ```
+
+### Agent Architecture
+
+The system uses a modular agent architecture with **one agent per prompt**:
+
+- **ResearchAgent**: Generates comprehensive research reports
+- **ReevaluationAgent**: Updates existing reports with current data
+- **ChatAgent**: Provides interactive chat with context awareness
+- **UpdateAgent**: Converts chat conversations into updated reports
+- **CheckerAgent**: Performs quality control and fixes issues (NEW)
+
+See [AGENTS.md](./AGENTS.md) for detailed architecture documentation.
 
 ### Building the Application
 
@@ -224,11 +281,18 @@ npm run start
 
 ### Available Scripts
 
+**GUI Scripts:**
 - `npm run start` - Build and start the application
 - `npm run build` - Build the application for production
 - `npm run dev` - Start development server (Vite)
 - `npm run package` - Package application for distribution
 - `npm run dist` - Create distribution packages
+
+**CLI Scripts:**
+- `npm run cli research <ticker>` - Generate research report
+- `npm run cli reevaluate <ticker> --report <file>` - Update existing report
+- `npm run cli check <ticker> --report <file>` - Run quality check (NEW)
+- `npm run cli chat <ticker>` - Start interactive chat
 
 ## 🔧 How It Works
 

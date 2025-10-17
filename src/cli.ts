@@ -157,6 +157,54 @@ program
   });
 
 program
+  .command('check <ticker>')
+  .description('Run a quality check pass on a research report')
+  .requiredOption('-r, --report <file>', 'Report file to check')
+  .option('-o, --output <file>', 'Output file path (default: checked-{ticker}-{timestamp}.md)')
+  .option('-d, --debug', 'Enable debug logging')
+  .action(async (ticker: string, options) => {
+    ticker = ticker.toUpperCase();
+    
+    // Load existing report
+    let reportContent: string;
+    try {
+      const fs = await import('fs/promises');
+      reportContent = await fs.readFile(options.report, 'utf-8');
+      console.log(`📄 Loaded report: ${options.report}`);
+      console.log('   Running quality checks...\n');
+    } catch (error) {
+      console.error(`❌ Error loading report: ${(error as Error).message}`);
+      process.exit(1);
+    }
+    
+    try {
+      const agent = new AgentService({ debug: options.debug });
+      let result = await agent.check(ticker, reportContent);
+      
+      // Clean up result - remove any leading asterisks or markdown artifacts
+      result = result.replace(/^\*+/, '').trim();
+      
+      // Generate output filename with timestamp
+      let outputFile = options.output;
+      if (!outputFile) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        outputFile = `checked-${ticker}-${timestamp}.md`;
+      }
+      
+      // Write to file
+      const fs = await import('fs/promises');
+      await fs.writeFile(outputFile, result);
+      
+      console.log('\n' + '='.repeat(80));
+      console.log(`✅ Checked report saved to: ${outputFile}`);
+      console.log('='.repeat(80) + '\n');
+    } catch (error) {
+      console.error('❌ Error:', (error as Error).message);
+      process.exit(1);
+    }
+  });
+
+program
   .command('chat <ticker>')
   .description('Start an interactive chat about a stock')
   .option('-r, --report <file>', 'Load a research report file into the chat context')
