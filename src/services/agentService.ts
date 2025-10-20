@@ -1,16 +1,13 @@
-import {
-  ResearchAgent,
-  ReevaluationAgent,
-  ChatAgent,
-  UpdateAgent,
-  CheckerAgent,
-  type AgentConfig,
-  type ResearchRequest,
-  type ReevaluationRequest,
-  type UpdateRequest,
-  type CheckerRequest,
-  type ChatHistoryMessage
-} from '../agents/index.js';
+import { app } from 'electron';
+import fixPath from 'fix-path';
+
+// Base Agent Classes
+import type { AgentConfig } from './agents/BaseAgent';
+import { ResearchAgent, type ResearchRequest } from './agents/ResearchAgent';
+import { ReevaluationAgent, type ReevaluationRequest } from './agents/ReevaluationAgent';
+import { ChatAgent } from './agents/ChatAgent';
+import { UpdateAgent, type UpdateRequest, type ChatHistoryMessage } from './agents/UpdateAgent';
+import { CheckerAgent, type CheckerRequest } from './agents/CheckerAgent';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -18,24 +15,36 @@ export interface ChatMessage {
 }
 
 /**
- * Main AgentService that orchestrates different agent types
- * This service maintains the same API as before but uses specialized agents internally
+ * Main AgentService for the GUI that orchestrates different agent types
+ * This service adapts the CLI agents for use in an Electron environment
  */
 export class AgentService {
   private config: AgentConfig;
   private chatAgents: Map<string, ChatAgent> = new Map();
 
   constructor(config: AgentConfig = {}) {
-    this.config = config;
+    // Fix PATH environment variable for Electron to find system binaries
+    fixPath();
+    
+    // Set the CODEX_BINARY environment variable to use system codex
+    process.env.CODEX_BINARY = '/opt/homebrew/bin/codex';
+    
+    this.config = {
+      ...config,
+      // Ensure we pass the fixed environment
+      apiKey: config.apiKey,
+      model: config.model || '',
+      debug: config.debug || false,
+    };
   }
 
   /**
    * Run research on a stock
    */
-  async research(request: ResearchRequest): Promise<string> {
-    const agent = new ResearchAgent(this.config);
+  async research(request: ResearchRequest, onProgress?: (message: string) => void): Promise<string> {
+    const agent = new ResearchAgent(this.config, app);
     try {
-      return await agent.run(request, (msg) => console.log(msg));
+      return await agent.run(request, onProgress);
     } finally {
       agent.cleanup();
     }
@@ -44,12 +53,12 @@ export class AgentService {
   /**
    * Reevaluate an existing research report
    */
-  async reevaluate(request: ResearchRequest, existingReport: string): Promise<string> {
-    const agent = new ReevaluationAgent(this.config);
+  async reevaluate(request: ResearchRequest, existingReport: string, onProgress?: (message: string) => void): Promise<string> {
+    const agent = new ReevaluationAgent(this.config, app);
     try {
       return await agent.run(
         { ...request, existingReport },
-        (msg) => console.log(msg)
+        onProgress
       );
     } finally {
       agent.cleanup();
@@ -59,12 +68,12 @@ export class AgentService {
   /**
    * Run a quality checker pass on a report
    */
-  async check(ticker: string, reportContent: string): Promise<string> {
-    const agent = new CheckerAgent(this.config);
+  async check(ticker: string, reportContent: string, onProgress?: (message: string) => void): Promise<string> {
+    const agent = new CheckerAgent(this.config, app);
     try {
       return await agent.run(
         { ticker, reportContent },
-        (msg) => console.log(msg)
+        onProgress
       );
     } finally {
       agent.cleanup();
@@ -74,28 +83,37 @@ export class AgentService {
   /**
    * Chat about a stock (maintains thread state)
    */
-  async chat(ticker: string, message: string, reportContent?: string): Promise<string> {
+  async chat(
+    ticker: string,
+    message: string,
+    reportContent?: string,
+    onProgress?: (message: string) => void,
+    onStream?: (text: string) => void
+  ): Promise<string> {
     // Get or create a chat agent for this ticker
     let chatAgent = this.chatAgents.get(ticker);
     if (!chatAgent) {
-      chatAgent = new ChatAgent(this.config);
+      chatAgent = new ChatAgent(this.config, app);
       this.chatAgents.set(ticker, chatAgent);
     }
 
-    return await chatAgent.run(ticker, message, reportContent, (msg) => console.log(msg));
+    return await chatAgent.run(ticker, message, reportContent, onProgress, onStream);
   }
 
   /**
    * Update report from chat history
    */
-  async updateReport(ticker: string, chatHistory?: Array<{role: string, content: string, timestamp: string}>): Promise<string> {
-    const agent = new UpdateAgent(this.config);
+  async updateReport(
+    ticker: string,
+    chatHistory?: Array<{role: string, content: string, timestamp: string}>,
+    onProgress?: (message: string) => void
+  ): Promise<string> {
+    const agent = new UpdateAgent(this.config, app);
     try {
-      const request: UpdateRequest = {
-        ticker,
-        ...(chatHistory && { chatHistory })
-      };
-      return await agent.run(request, (msg) => console.log(msg));
+      return await agent.run(
+        { ticker, chatHistory },
+        onProgress
+      );
     } finally {
       agent.cleanup();
     }

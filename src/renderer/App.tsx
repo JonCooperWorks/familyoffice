@@ -23,12 +23,8 @@ function App() {
   };
 
   const allDepsReady = depsStatus && 
-    depsStatus.docker.installed &&
-    depsStatus.docker.running &&
     depsStatus.codex.installed &&
-    depsStatus.codex.authenticated &&
-    depsStatus.dockerImage.built &&
-    depsStatus.npmPackages.installed;
+    depsStatus.codex.authenticated;
 
   if (!depsChecked) {
     return (

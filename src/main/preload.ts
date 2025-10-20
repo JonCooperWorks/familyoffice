@@ -6,12 +6,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkDependencies: (): Promise<DependencyStatus> => 
     ipcRenderer.invoke('check-dependencies'),
   
-  installDependency: (dep: string): Promise<boolean> => 
-    ipcRenderer.invoke('install-dependency', dep),
-  
-  buildDockerImage: (): Promise<boolean> => 
-    ipcRenderer.invoke('build-docker-image'),
-  
   // Research operations
   runResearch: (request: ResearchRequest): Promise<string> => 
     ipcRenderer.invoke('run-research', request),
@@ -70,8 +64,6 @@ declare global {
   interface Window {
     electronAPI: {
       checkDependencies: () => Promise<DependencyStatus>;
-      installDependency: (dep: string) => Promise<boolean>;
-      buildDockerImage: () => Promise<boolean>;
       runResearch: (request: ResearchRequest) => Promise<string>;
       runChat: (ticker: string, message: string, reportPath?: string) => Promise<string>;
       updateReport: (ticker: string, chatHistory?: any[]) => Promise<string>;

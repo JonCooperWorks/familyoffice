@@ -1,20 +1,8 @@
 export interface DependencyStatus {
-  docker: {
-    installed: boolean;
-    running: boolean;
-    version?: string;
-  };
   codex: {
     installed: boolean;
     authenticated: boolean;
     version?: string;
-  };
-  dockerImage: {
-    built: boolean;
-    version?: string;
-  };
-  npmPackages: {
-    installed: boolean;
   };
 }
 
@@ -47,8 +35,6 @@ export interface DockerOutput {
 
 export type IPCChannels = 
   | 'check-dependencies'
-  | 'install-dependency'
-  | 'build-docker-image'
   | 'run-research'
   | 'run-chat'
   | 'update-report'
@@ -57,7 +43,7 @@ export type IPCChannels =
   | 'read-report'
   | 'export-report'
   | 'delete-report'
-  | 'docker-output'
+  | 'docker-output' // Still used for agent output streaming
   | 'process-complete'
   | 'process-error';
 

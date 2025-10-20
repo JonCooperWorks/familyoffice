@@ -1,9 +1,6 @@
 import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { join } from 'path';
+import type { App } from 'electron';
 
 export interface PromptTemplate {
   content: string;
@@ -13,9 +10,25 @@ export interface PromptTemplate {
 export class PromptLoader {
   private promptsDir: string;
 
-  constructor() {
-    // Navigate from src/utils to prompts directory
-    this.promptsDir = join(__dirname, '../../prompts');
+  constructor(app?: App, projectRoot?: string) {
+    // If projectRoot is provided directly, use it
+    if (projectRoot) {
+      this.promptsDir = join(projectRoot, 'prompts');
+    }
+    // Otherwise use app to determine paths
+    else if (app) {
+      if (app.isPackaged) {
+        // Production: prompts are packaged with the app
+        this.promptsDir = join(process.resourcesPath, 'prompts');
+      } else {
+        // Development: get the app path (project root) and append prompts
+        this.promptsDir = join(app.getAppPath(), 'prompts');
+      }
+    } 
+    // Fallback for non-Electron contexts (shouldn't happen but safety first)
+    else {
+      throw new Error('PromptLoader requires either app or projectRoot parameter');
+    }
   }
 
   loadPrompt(promptName: string): PromptTemplate {
@@ -50,4 +63,3 @@ export class PromptLoader {
     return filled;
   }
 }
-

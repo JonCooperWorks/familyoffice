@@ -142,27 +142,70 @@
   font-size: 12px;
 }
 
-.build-output {
+.npm-output {
   margin-top: 20px;
   background: #1d1d1f;
-  color: #00ff00;
-  padding: 16px;
   border-radius: 8px;
-  max-height: 200px;
-  overflow-y: auto;
+  overflow: hidden;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+  transition: all 0.3s ease;
 }
 
-.build-output h3 {
+.npm-output.expanded {
+  max-height: 400px;
+}
+
+.npm-output.collapsed {
+  max-height: 50px;
+}
+
+.output-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #2d2d2f;
+  cursor: pointer;
+  user-select: none;
+}
+
+.output-header:hover {
+  background: #3d3d3f;
+}
+
+.output-header h3 {
   color: white;
   font-size: 14px;
-  margin-bottom: 8px;
+  margin: 0;
+  font-weight: 600;
 }
 
-.build-output pre {
+.toggle-button {
+  background: transparent;
+  color: #00ff00;
+  border: 1px solid #00ff00;
+  padding: 4px 12px;
+  border-radius: 4px;
   font-size: 12px;
-  line-height: 1.4;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-button:hover {
+  background: #00ff00;
+  color: #1d1d1f;
+}
+
+.npm-output pre {
+  color: #00ff00;
+  padding: 16px;
+  font-size: 12px;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
+  margin: 0;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .deps-footer {

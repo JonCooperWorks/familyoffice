@@ -14,11 +14,11 @@ process.env.CODEX_BINARY = '/opt/homebrew/bin/codex';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Get project root (gui/../)
-const PROJECT_ROOT = join(__dirname, '..', '..', '..');
+// Get project root - from dist-electron/main/ go up to root
+const PROJECT_ROOT = join(__dirname, '..', '..');
 
 let mainWindow: BrowserWindow | null = null;
-const depManager = new DependencyManager(PROJECT_ROOT);
+const depManager = new DependencyManager();
 const agentManager = new AgentManager(PROJECT_ROOT);
 
 function createWindow() {
@@ -92,17 +92,7 @@ ipcMain.handle('check-dependencies', async () => {
   return await depManager.checkAll();
 });
 
-ipcMain.handle('install-dependency', async (_event, dep: string) => {
-  if (dep === 'npm') {
-    return await depManager.installNpmPackages();
-  }
-  return false;
-});
 
-ipcMain.handle('build-docker-image', async () => {
-  // No longer needed - Codex runs directly in the app
-  return true;
-});
 
 ipcMain.handle('run-research', async (_event, request: ResearchRequest) => {
   try {

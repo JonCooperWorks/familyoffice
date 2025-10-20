@@ -25,7 +25,7 @@ export abstract class BaseAgent {
 
   constructor(config: AgentConfig = {}, app: App) {
     this.codex = new Codex(config.apiKey ? { apiKey: config.apiKey } : {});
-    this.promptLoader = new PromptLoader();
+    this.promptLoader = new PromptLoader(app);
     this.model = config.model || '';
     this.debug = config.debug || false;
     this.app = app;
@@ -45,7 +45,7 @@ export abstract class BaseAgent {
     // Use app data directory for temp files
     const tempBaseDir = this.app.isPackaged 
       ? join(this.app.getPath('userData'), 'temp')
-      : join(__dirname, '../../../../temp');
+      : join(this.app.getAppPath(), 'temp');
     
     const tempDir = join(tempBaseDir, `${ticker}-${suffix}-${timestamp}`);
     await mkdir(tempDir, { recursive: true });
