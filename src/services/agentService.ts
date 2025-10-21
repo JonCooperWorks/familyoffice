@@ -41,7 +41,7 @@ export class AgentService {
   /**
    * Run research on a stock
    */
-  async research(request: ResearchRequest, onProgress?: (message: string) => void): Promise<string> {
+  async research(request: ResearchRequest, onProgress?: (message: string) => void): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     const agent = new ResearchAgent(this.config, app);
     try {
       return await agent.run(request, onProgress);
@@ -53,7 +53,7 @@ export class AgentService {
   /**
    * Reevaluate an existing research report
    */
-  async reevaluate(request: ResearchRequest, existingReport: string, onProgress?: (message: string) => void): Promise<string> {
+  async reevaluate(request: ResearchRequest, existingReport: string, onProgress?: (message: string) => void): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     const agent = new ReevaluationAgent(this.config, app);
     try {
       return await agent.run(
@@ -68,7 +68,7 @@ export class AgentService {
   /**
    * Run a quality checker pass on a report
    */
-  async check(ticker: string, reportContent: string, onProgress?: (message: string) => void): Promise<string> {
+  async check(ticker: string, reportContent: string, onProgress?: (message: string) => void): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     const agent = new CheckerAgent(this.config, app);
     try {
       return await agent.run(
@@ -90,7 +90,7 @@ export class AgentService {
     onProgress?: (message: string) => void,
     onStream?: (text: string) => void,
     referenceReports?: Array<{ticker: string, content: string}>
-  ): Promise<string> {
+  ): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     // Get or create a chat agent for this ticker
     let chatAgent = this.chatAgents.get(ticker);
     if (!chatAgent) {
@@ -108,7 +108,7 @@ export class AgentService {
     ticker: string,
     chatHistory?: Array<{role: string, content: string, timestamp: string}>,
     onProgress?: (message: string) => void
-  ): Promise<string> {
+  ): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     const agent = new UpdateAgent(this.config, app);
     try {
       return await agent.run(

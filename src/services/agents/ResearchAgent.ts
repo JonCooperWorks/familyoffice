@@ -15,7 +15,7 @@ export class ResearchAgent extends BaseAgent {
     return 'prompt-research-stock';
   }
 
-  async run(request: ResearchRequest, onProgress?: AgentProgress): Promise<string> {
+  async run(request: ResearchRequest, onProgress?: AgentProgress): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     onProgress?.(`🔍 Starting research on ${request.companyName} (${request.ticker})...`);
 
     // Create temp directory

@@ -33,8 +33,14 @@ export class AgentManager {
         (message) => this.logOutput(message)
       );
 
+      // Log token usage if available
+      if (result.usage) {
+        const total = result.usage.input_tokens + result.usage.output_tokens;
+        this.logOutput(`📊 Token usage: ${result.usage.input_tokens} in + ${result.usage.output_tokens} out = ${total} total`);
+      }
+
       // Clean up result - remove any leading asterisks or markdown artifacts
-      const cleanResult = result.replace(/^\*+/, '').trim();
+      const cleanResult = result.response.replace(/^\*+/, '').trim();
       
       // Generate output filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
@@ -90,8 +96,14 @@ export class AgentManager {
         (message) => this.logOutput(message)
       );
 
+      // Log token usage if available
+      if (result.usage) {
+        const total = result.usage.input_tokens + result.usage.output_tokens;
+        this.logOutput(`📊 Token usage: ${result.usage.input_tokens} in + ${result.usage.output_tokens} out = ${total} total`);
+      }
+
       // Clean up result - remove any leading asterisks or markdown artifacts
-      const cleanResult = result.replace(/^\*+/, '').trim();
+      const cleanResult = result.response.replace(/^\*+/, '').trim();
       
       // Generate output filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
@@ -133,7 +145,7 @@ export class AgentManager {
     }
   }
 
-  async runChat(ticker: string, message: string, reportPath?: string, onStream?: (text: string) => void, referenceReports?: Array<{ticker: string, content: string}>): Promise<string> {
+  async runChat(ticker: string, message: string, reportPath?: string, onStream?: (text: string) => void, referenceReports?: Array<{ticker: string, content: string}>): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     try {
       let reportContent: string | undefined;
       
@@ -180,10 +192,16 @@ export class AgentManager {
         }
       );
 
-      console.log(`📄 [AGENT_MANAGER DEBUG] Received result: ${result.length} characters`);
+      console.log(`📄 [AGENT_MANAGER DEBUG] Received result: ${result.response.length} characters`);
+
+      // Log token usage if available
+      if (result.usage) {
+        const total = result.usage.input_tokens + result.usage.output_tokens;
+        this.logOutput(`📊 Token usage: ${result.usage.input_tokens} in + ${result.usage.output_tokens} out = ${total} total`);
+      }
 
       // Clean up result - remove any leading asterisks or markdown artifacts
-      const cleanResult = result.replace(/^\*+/, '').trim();
+      const cleanResult = result.response.replace(/^\*+/, '').trim();
       
       console.log(`🧹 [AGENT_MANAGER DEBUG] Cleaned result: ${cleanResult.length} characters`);
       

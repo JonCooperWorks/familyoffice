@@ -84,10 +84,11 @@ export abstract class BaseAgent {
   protected async processEvents(
     events: AsyncIterable<any>,
     onProgress?: AgentProgress
-  ): Promise<string> {
+  ): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     let finalResponse = '';
     let hasResponse = false;
     let eventCount = 0;
+    let usage: { input_tokens: number; output_tokens: number } | undefined;
 
     for await (const event of events) {
       eventCount++;
@@ -111,7 +112,11 @@ export abstract class BaseAgent {
         case 'turn.completed':
           onProgress?.(`✅ Task completed!`);
           if (event.usage) {
-            onProgress?.(`Tokens: ${event.usage.input_tokens} in, ${event.usage.output_tokens} out`);
+            usage = {
+              input_tokens: event.usage.input_tokens,
+              output_tokens: event.usage.output_tokens
+            };
+            onProgress?.(`📊 Tokens: ${event.usage.input_tokens} in, ${event.usage.output_tokens} out`);
           }
           break;
         case 'turn.failed':
@@ -123,7 +128,7 @@ export abstract class BaseAgent {
       throw new Error('No response generated. The agent may need a different prompt or model configuration.');
     }
 
-    return finalResponse;
+    return { response: finalResponse, usage };
   }
 
   /**

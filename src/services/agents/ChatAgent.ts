@@ -20,7 +20,7 @@ export class ChatAgent extends BaseAgent {
     onProgress?: AgentProgress,
     onStream?: (text: string) => void,
     referenceReports?: Array<{ticker: string, content: string}>
-  ): Promise<string> {
+  ): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     // Check if there's an existing thread for this ticker
     let thread = this.chatThreads.get(ticker);
     let tempDir: string | undefined;
@@ -90,6 +90,7 @@ Please analyze my question in the context of both the main report and the refere
     const { events } = await thread.runStreamed(finalMessage);
 
     let finalResponse = '';
+    let usage: { input_tokens: number; output_tokens: number } | undefined;
 
     for await (const event of events) {
       switch (event.type) {
@@ -114,12 +115,21 @@ Please analyze my question in the context of both the main report and the refere
             onProgress?.('Search completed');
           }
           break;
+        case 'turn.completed':
+          if (event.usage) {
+            usage = {
+              input_tokens: event.usage.input_tokens,
+              output_tokens: event.usage.output_tokens
+            };
+            onProgress?.(`📊 Tokens: ${event.usage.input_tokens} in, ${event.usage.output_tokens} out`);
+          }
+          break;
         case 'turn.failed':
           throw new Error(`Chat failed: ${event.error.message}`);
       }
     }
 
-    return finalResponse;
+    return { response: finalResponse, usage };
   }
 
   /**

@@ -2,6 +2,8 @@
 
 Today's date is ${currentDate}.
 
+**FORMAT: Use GitHub-flavored markdown for all output.**
+
 **Working Directory:** Your working directory is `${tempDir}`. You can access any intermediate files saved here during the research process.
 
 **Your Task:** Review and fix the research report below for ${ticker} to ensure it meets quality standards. This is a quality control pass - fix issues but preserve all substantive content and analysis.

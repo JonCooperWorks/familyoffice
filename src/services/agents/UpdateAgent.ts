@@ -21,7 +21,7 @@ export class UpdateAgent extends BaseAgent {
     return 'prompt-update-report';
   }
 
-  async run(request: UpdateRequest, onProgress?: AgentProgress): Promise<string> {
+  async run(request: UpdateRequest, onProgress?: AgentProgress): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     onProgress?.(`updating ${request.ticker} report`);
 
     if (this.debug) {

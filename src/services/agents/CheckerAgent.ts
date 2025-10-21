@@ -15,7 +15,7 @@ export class CheckerAgent extends BaseAgent {
     return 'prompt-checker-pass';
   }
 
-  async run(request: CheckerRequest, onProgress?: AgentProgress): Promise<string> {
+  async run(request: CheckerRequest, onProgress?: AgentProgress): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     onProgress?.(`✅ Running quality check on ${request.ticker} report...`);
 
     // Create temp directory

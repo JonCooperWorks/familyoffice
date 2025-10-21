@@ -235,17 +235,47 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
 
       setProcessingStatus('Thinking...');
       console.log('🤖 Calling runChat with', referenceReports.length, 'reference reports');
-      const response = await window.electronAPI.runChat(
+      const result = await window.electronAPI.runChat(
         ticker,
         messageContent,
         reportPath,
         referenceReports.length > 0 ? referenceReports : undefined
       );
 
+      // Log and store token usage
+      if (result.usage) {
+        const { input_tokens, output_tokens } = result.usage;
+        const totalTokens = input_tokens + output_tokens;
+        
+        console.log(`📊 Token Usage: ${input_tokens} in + ${output_tokens} out = ${totalTokens} total`);
+        
+        // Store token usage in localStorage
+        try {
+          const usageKey = 'tokenUsage';
+          const existingUsage = localStorage.getItem(usageKey);
+          const usageData = existingUsage ? JSON.parse(existingUsage) : { total: 0, sessions: [] };
+          
+          usageData.total += totalTokens;
+          usageData.sessions.push({
+            timestamp: new Date().toISOString(),
+            ticker,
+            type: 'chat',
+            input_tokens,
+            output_tokens,
+            total: totalTokens
+          });
+          
+          localStorage.setItem(usageKey, JSON.stringify(usageData));
+          console.log(`💾 Total token usage: ${usageData.total.toLocaleString()} tokens`);
+        } catch (error) {
+          console.error('Failed to store token usage:', error);
+        }
+      }
+
       // Update the assistant message with the final response
       setMessages(prev => prev.map(msg => 
         (msg as any).id === assistantMessageId 
-          ? { ...msg, content: response }
+          ? { ...msg, content: result.response }
           : msg
       ));
 

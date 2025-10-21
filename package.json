@@ -44,9 +44,10 @@
   },
   "build": {
     "appId": "com.familyoffice.research",
-    "productName": "Family Office Research",
+    "productName": "familyoffice",
     "mac": {
       "category": "public.app-category.finance",
+      "icon": "build/icon.icns",
       "target": [
         "dmg",
         "zip"

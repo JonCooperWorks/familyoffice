@@ -2,6 +2,8 @@
 
 Today's date is ${currentDate}.
 
+**FORMAT: Use GitHub-flavored markdown for all output.**
+
 **Working Directory:** Your working directory is `${tempDir}`. You can save any intermediate files here if needed.
 
 ${chatHistorySection}

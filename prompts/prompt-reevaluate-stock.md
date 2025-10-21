@@ -2,6 +2,8 @@
 
 Today's date is ${currentDate}.
 
+**FORMAT: Use GitHub-flavored markdown for all output.**
+
 **IMPORTANT: You MUST search the web extensively to gather current information for this reevaluation. Verify every claim with up-to-date sources.**
 
 **Working Directory:** Your working directory is `${tempDir}`. Save any intermediate files (HTML, XML, downloaded documents, etc.) here. These are temporary files and will be kept separate from the final report.

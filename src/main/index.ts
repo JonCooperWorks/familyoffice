@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } from 'electron';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readdir, readFile, stat } from 'fs/promises';
@@ -17,17 +17,48 @@ const __dirname = dirname(__filename);
 // Get project root - from dist-electron/main/ go up to root
 const PROJECT_ROOT = join(__dirname, '..', '..');
 
+// Set app name IMMEDIATELY for dock and menu (MUST be before app.whenReady)
+app.name = 'familyoffice';
+console.log('🏷️  Setting app name to:', app.name);
+
 let mainWindow: BrowserWindow | null = null;
 const depManager = new DependencyManager();
 const agentManager = new AgentManager(PROJECT_ROOT);
 
 function createWindow() {
+  // Set dock icon for macOS (must be done before creating window)
+  if (process.platform === 'darwin') {
+    try {
+      // Try PNG first, fallback to ICNS
+      const iconPngPath = join(PROJECT_ROOT, 'icon.png');
+      const iconIcnsPath = join(PROJECT_ROOT, 'icon.icns');
+      
+      let icon = nativeImage.createFromPath(iconPngPath);
+      if (icon.isEmpty()) {
+        icon = nativeImage.createFromPath(iconIcnsPath);
+      }
+      
+      if (!icon.isEmpty()) {
+        app.dock.setIcon(icon);
+        console.log('✅ Dock icon set successfully');
+      } else {
+        console.log('❌ Icon file is empty or invalid');
+      }
+    } catch (error) {
+      console.log('❌ Could not set dock icon:', error);
+    }
+  }
+
+  const iconPath = join(PROJECT_ROOT, 'icon.png');
+  const windowIcon = nativeImage.createFromPath(iconPath);
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 800,
     minHeight: 600,
     fullscreen: true,
+    icon: windowIcon,
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
@@ -136,7 +167,7 @@ ipcMain.handle('run-chat', async (_event, ticker: string, message: string, repor
       referenceReports
     );
     
-    mainWindow?.webContents.send('process-complete', result);
+    mainWindow?.webContents.send('process-complete', result.response);
     return result;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';

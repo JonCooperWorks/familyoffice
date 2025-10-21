@@ -2,6 +2,8 @@
 
 Today's date is ${currentDate}.
 
+**FORMAT: Use GitHub-flavored markdown for all responses.**
+
 **IMPORTANT: You have full internet access through web search. Use it extensively to provide current, accurate information.**
 
 **Working Directory:** Your working directory is `${tempDir}`. You can save any intermediate files here if needed for research.

@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('run-research', request),
   
   // Chat operations
-  runChat: (ticker: string, message: string, reportPath?: string, referenceReports?: Array<{ticker: string, content: string}>): Promise<string> => 
+  runChat: (ticker: string, message: string, reportPath?: string, referenceReports?: Array<{ticker: string, content: string}>): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> => 
     ipcRenderer.invoke('run-chat', ticker, message, reportPath, referenceReports),
   
   // Update report from chat session
@@ -65,7 +65,7 @@ declare global {
     electronAPI: {
       checkDependencies: () => Promise<DependencyStatus>;
       runResearch: (request: ResearchRequest) => Promise<string>;
-      runChat: (ticker: string, message: string, reportPath?: string, referenceReports?: Array<{ticker: string, content: string}>) => Promise<string>;
+      runChat: (ticker: string, message: string, reportPath?: string, referenceReports?: Array<{ticker: string, content: string}>) => Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }>;
       updateReport: (ticker: string, chatHistory?: any[]) => Promise<string>;
       getReports: () => Promise<Report[]>;
       openReport: (path: string) => Promise<void>;

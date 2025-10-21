@@ -16,7 +16,7 @@ export class ReevaluationAgent extends BaseAgent {
     return 'prompt-reevaluate-stock';
   }
 
-  async run(request: ReevaluationRequest, onProgress?: AgentProgress): Promise<string> {
+  async run(request: ReevaluationRequest, onProgress?: AgentProgress): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     onProgress?.(`🔄 Starting reevaluation of ${request.companyName} (${request.ticker})...`);
 
     // Create temp directory
