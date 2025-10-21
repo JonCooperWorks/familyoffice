@@ -88,7 +88,8 @@ export class AgentService {
     message: string,
     reportContent?: string,
     onProgress?: (message: string) => void,
-    onStream?: (text: string) => void
+    onStream?: (text: string) => void,
+    referenceReports?: Array<{ticker: string, content: string}>
   ): Promise<string> {
     // Get or create a chat agent for this ticker
     let chatAgent = this.chatAgents.get(ticker);
@@ -97,7 +98,7 @@ export class AgentService {
       this.chatAgents.set(ticker, chatAgent);
     }
 
-    return await chatAgent.run(ticker, message, reportContent, onProgress, onStream);
+    return await chatAgent.run(ticker, message, reportContent, onProgress, onStream, referenceReports);
   }
 
   /**

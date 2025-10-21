@@ -119,7 +119,7 @@ ipcMain.handle('run-research', async (_event, request: ResearchRequest) => {
   }
 });
 
-ipcMain.handle('run-chat', async (_event, ticker: string, message: string, reportPath?: string) => {
+ipcMain.handle('run-chat', async (_event, ticker: string, message: string, reportPath?: string, referenceReports?: Array<{ticker: string, content: string}>) => {
   try {
     agentManager.setOutputHandler((type, data) => {
       mainWindow?.webContents.send('docker-output', { type, data });
@@ -132,7 +132,8 @@ ipcMain.handle('run-chat', async (_event, ticker: string, message: string, repor
       (streamedText) => {
         // Send streaming text updates to the renderer
         mainWindow?.webContents.send('chat-stream', streamedText);
-      }
+      },
+      referenceReports
     );
     
     mainWindow?.webContents.send('process-complete', result);

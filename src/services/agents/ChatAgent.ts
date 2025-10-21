@@ -18,7 +18,8 @@ export class ChatAgent extends BaseAgent {
     message: string,
     reportContent?: string,
     onProgress?: AgentProgress,
-    onStream?: (text: string) => void
+    onStream?: (text: string) => void,
+    referenceReports?: Array<{ticker: string, content: string}>
   ): Promise<string> {
     // Check if there's an existing thread for this ticker
     let thread = this.chatThreads.get(ticker);
@@ -64,8 +65,29 @@ ${reportContent}
       await thread.run(contextMessage);
     }
 
+    // Prepare the user's message with reference reports if provided
+    let finalMessage = message;
+    if (referenceReports && referenceReports.length > 0) {
+      const referenceSection = referenceReports.map(ref => 
+        `## Reference Report: ${ref.ticker}\n\n${ref.content}`
+      ).join('\n\n---\n\n');
+      
+      finalMessage = `${message}
+
+---
+**Reference Reports for Comparison:**
+
+${referenceSection}
+
+---
+
+Please analyze my question in the context of both the main report and the reference reports provided above.`;
+      
+      onProgress?.(`📚 Including ${referenceReports.length} reference report(s): ${referenceReports.map(r => r.ticker).join(', ')}`);
+    }
+
     // Run the user's message
-    const { events } = await thread.runStreamed(message);
+    const { events } = await thread.runStreamed(finalMessage);
 
     let finalResponse = '';
 

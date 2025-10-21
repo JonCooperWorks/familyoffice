@@ -185,11 +185,62 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
     });
 
     try {
-      const response = await window.electronAPI.runChat({
+      // Detect cashtags in the message (e.g., $AAPL, $TSLA)
+      const cashtagRegex = /\$([A-Z]{1,5})/g;
+      const cashtags = [...messageContent.matchAll(cashtagRegex)].map(match => match[1]);
+      
+      // Load reference reports for detected cashtags
+      const referenceReports: { ticker: string; content: string }[] = [];
+      if (cashtags.length > 0) {
+        console.log(`📎 Detected cashtags: ${cashtags.join(', ')}`);
+        setProcessingStatus('Loading referenced reports...');
+        
+        // Get all reports
+        console.log('📚 Fetching all reports...');
+        const allReports = await window.electronAPI.getReports();
+        console.log(`📚 Found ${allReports.length} total reports`);
+        
+        // For each cashtag, find the most recent report
+        for (const cashtagTicker of cashtags) {
+          // Skip if it's the same as the current ticker
+          if (cashtagTicker === ticker) {
+            console.log(`⏭️  Skipping ${cashtagTicker} (same as current ticker)`);
+            continue;
+          }
+          
+          // Find the most recent report for this ticker
+          const tickerReports = allReports.filter(r => r.ticker === cashtagTicker);
+          if (tickerReports.length > 0) {
+            // Reports are already sorted by date (most recent first)
+            const latestReport = tickerReports[0];
+            console.log(`📄 Loading report for ${cashtagTicker}: ${latestReport.path}`);
+            try {
+              const content = await window.electronAPI.readReport(latestReport.path);
+              referenceReports.push({ ticker: cashtagTicker, content });
+              console.log(`✅ Loaded report for ${cashtagTicker} (${content.length} chars)`);
+            } catch (error) {
+              console.error(`❌ Failed to load report for ${cashtagTicker}:`, error);
+            }
+          } else {
+            console.log(`⚠️  No report found for ${cashtagTicker}`);
+          }
+        }
+        
+        // Update status after loading reports
+        if (referenceReports.length > 0) {
+          console.log(`✅ Loaded ${referenceReports.length} reference report(s)`);
+          setProcessingStatus(`Loaded ${referenceReports.length} reference report(s). Thinking...`);
+        }
+      }
+
+      setProcessingStatus('Thinking...');
+      console.log('🤖 Calling runChat with', referenceReports.length, 'reference reports');
+      const response = await window.electronAPI.runChat(
         ticker,
-        message: messageContent,
-        reportPath
-      });
+        messageContent,
+        reportPath,
+        referenceReports.length > 0 ? referenceReports : undefined
+      );
 
       // Update the assistant message with the final response
       setMessages(prev => prev.map(msg => 

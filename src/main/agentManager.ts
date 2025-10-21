@@ -133,7 +133,7 @@ export class AgentManager {
     }
   }
 
-  async runChat(ticker: string, message: string, reportPath?: string, onStream?: (text: string) => void): Promise<string> {
+  async runChat(ticker: string, message: string, reportPath?: string, onStream?: (text: string) => void, referenceReports?: Array<{ticker: string, content: string}>): Promise<string> {
     try {
       let reportContent: string | undefined;
       
@@ -152,7 +152,8 @@ export class AgentManager {
         message,
         reportContent,
         (message) => this.logOutput(message),
-        onStream
+        onStream,
+        referenceReports
       );
 
       return result;
