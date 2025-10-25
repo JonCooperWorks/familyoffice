@@ -18,10 +18,10 @@ export class CheckerAgent extends BaseAgent {
   async run(request: CheckerRequest, onProgress?: AgentProgress): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     onProgress?.(`✅ Running quality check on ${request.ticker} report...`);
 
-    // Fetch Yahoo Finance data
-    onProgress?.(`📊 Fetching market data from Yahoo Finance...`);
-    const yahooQuote = await this.getYahooFinanceData(request.ticker);
-    const marketData = this.formatYahooFinanceData(yahooQuote);
+    // Fetch market data
+    onProgress?.(`📊 Fetching market data...`);
+    const quote = await this.getMarketData(request.ticker, onProgress);
+    const marketData = this.formatMarketData(quote);
 
     // Create temp directory
     const tempDir = await this.createWorkingDirectory(request.ticker, 'checker');

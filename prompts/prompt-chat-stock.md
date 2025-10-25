@@ -23,7 +23,7 @@ ${reportContext}
 
 ---
 
-## Current Market Data (Yahoo Finance)
+## Current Market Data
 
 ${marketData}
 

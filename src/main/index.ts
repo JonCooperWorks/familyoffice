@@ -6,6 +6,7 @@ import { DependencyManager } from './deps';
 import { AgentManager } from './agentManager';
 import type { ResearchRequest, Report } from '../shared/types';
 import fixPath from 'fix-path';
+import { AlphaVantageService } from '../services/alphaVantageService';
 
 // Fix PATH and set Codex binary location early
 fixPath();
@@ -103,7 +104,11 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  // Load Alpha Vantage API key on startup
+  await loadAlphaVantageApiKey();
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -117,10 +122,101 @@ app.on('activate', () => {
   }
 });
 
+// Alpha Vantage API Key Management
+
+async function loadAlphaVantageApiKey(): Promise<void> {
+  try {
+    const settingsPath = join(app.getPath('userData'), 'settings.json');
+    const fs = await import('fs/promises');
+    
+    try {
+      const data = await fs.readFile(settingsPath, 'utf-8');
+      const settings = JSON.parse(data);
+      if (settings.alphaVantageApiKey) {
+        AlphaVantageService.setApiKey(settings.alphaVantageApiKey);
+        console.log('✅ Alpha Vantage API key loaded');
+      }
+    } catch {
+      // Settings file doesn't exist yet
+      console.log('ℹ️ No Alpha Vantage API key found');
+    }
+  } catch (error) {
+    console.error('Error loading Alpha Vantage API key:', error);
+  }
+}
+
+async function saveAlphaVantageApiKey(apiKey: string): Promise<void> {
+  try {
+    const settingsPath = join(app.getPath('userData'), 'settings.json');
+    const fs = await import('fs/promises');
+    
+    let settings: any = {};
+    try {
+      const data = await fs.readFile(settingsPath, 'utf-8');
+      settings = JSON.parse(data);
+    } catch {
+      // File doesn't exist, start fresh
+    }
+    
+    settings.alphaVantageApiKey = apiKey;
+    await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
+    AlphaVantageService.setApiKey(apiKey);
+    console.log('✅ Alpha Vantage API key saved');
+  } catch (error) {
+    console.error('Error saving Alpha Vantage API key:', error);
+    throw error;
+  }
+}
+
 // IPC Handlers
 
 ipcMain.handle('check-dependencies', async () => {
   return await depManager.checkAll();
+});
+
+ipcMain.handle('get-alphavantage-api-key', async () => {
+  return AlphaVantageService.getApiKey();
+});
+
+ipcMain.handle('set-alphavantage-api-key', async (_event, apiKey: string) => {
+  await saveAlphaVantageApiKey(apiKey);
+  return true;
+});
+
+ipcMain.handle('has-alphavantage-api-key', async () => {
+  return AlphaVantageService.hasApiKey();
+});
+
+ipcMain.handle('prompt-alphavantage-api-key', async () => {
+  if (!mainWindow) return null;
+  
+  const result = await dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: 'Alpha Vantage API Key Required',
+    message: 'Please enter your Alpha Vantage API key',
+    detail: 'Get a free API key at: https://www.alphavantage.co/support/#api-key\n\nThe key will be stored securely on your computer.',
+    buttons: ['Cancel', 'Enter API Key'],
+    defaultId: 1,
+    cancelId: 0
+  });
+  
+  if (result.response === 1) {
+    // Show input dialog
+    await dialog.showMessageBox(mainWindow, {
+      type: 'question',
+      title: 'Enter API Key',
+      message: 'Paste your Alpha Vantage API key:',
+      buttons: ['Cancel', 'OK'],
+      defaultId: 1,
+      cancelId: 0
+    });
+    
+    // Note: Electron's dialog doesn't have text input
+    // We'll need to handle this in the renderer
+    return null;
+  }
+  
+  return null;
 });
 
 
@@ -128,9 +224,14 @@ ipcMain.handle('check-dependencies', async () => {
 ipcMain.handle('run-research', async (_event, request: ResearchRequest) => {
   const startTime = Date.now();
   const timestamp = new Date().toISOString();
+  const logs: string[] = [];
   
   try {
     agentManager.setOutputHandler((type, data) => {
+      // Capture logs
+      const logLines = data.split('\n').filter(line => line.trim());
+      logs.push(...logLines);
+      // Also send to UI
       mainWindow?.webContents.send('docker-output', { type, data });
     });
     
@@ -176,7 +277,7 @@ ipcMain.handle('run-research', async (_event, request: ResearchRequest) => {
           output_cost,
           total_cost
         },
-        logs: [],
+        logs: logs,
         reportPath: result.path
       };
       
@@ -242,6 +343,7 @@ ipcMain.handle('run-chat', async (_event, ticker: string, message: string, repor
 ipcMain.handle('update-report', async (_event, ticker: string, chatHistory?: any[]) => {
   const startTime = Date.now();
   const timestamp = new Date().toISOString();
+  const logs: string[] = [];
   
   console.log(`\n🔄 [IPC DEBUG] Received update-report request for ticker: ${ticker}`);
   console.log(`📚 [IPC DEBUG] Chat history provided: ${chatHistory ? `${chatHistory.length} messages` : 'none'}`);
@@ -250,6 +352,10 @@ ipcMain.handle('update-report', async (_event, ticker: string, chatHistory?: any
     console.log(`📡 [IPC DEBUG] Setting up output handler`);
     agentManager.setOutputHandler((type, data) => {
       console.log(`📊 [IPC DEBUG] Sending docker-output: ${type} - ${data}`);
+      // Capture logs
+      const logLines = data.split('\n').filter(line => line.trim());
+      logs.push(...logLines);
+      // Also send to UI
       mainWindow?.webContents.send('docker-output', { type, data });
     });
     
@@ -290,7 +396,7 @@ ipcMain.handle('update-report', async (_event, ticker: string, chatHistory?: any
           output_cost,
           total_cost
         },
-        logs: [],
+        logs: logs,
         reportPath: result.path
       };
       

@@ -7,6 +7,7 @@ function Stats() {
   const [stats, setStats] = useState<any>(null);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'date' | 'cost' | 'tokens'>('date');
+  const [selectedRun, setSelectedRun] = useState<ResearchMetadata | null>(null);
 
   useEffect(() => {
     loadData();
@@ -205,7 +206,12 @@ function Stats() {
             </thead>
             <tbody>
               {sortedMetadata.map((item) => (
-                <tr key={item.id}>
+                <tr 
+                  key={item.id}
+                  onClick={() => setSelectedRun(item)}
+                  className="clickable-row"
+                  title="Click to view logs"
+                >
                   <td className="ticker-cell">{item.ticker}</td>
                   <td>
                     <span className={`type-badge ${item.type}`}>
@@ -256,6 +262,69 @@ function Stats() {
           💡 Tip: Export your data regularly for long-term tracking and analysis
         </p>
       </div>
+
+      {/* Logs Modal */}
+      {selectedRun && (
+        <div className="modal-overlay" onClick={() => setSelectedRun(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Run Logs: {selectedRun.ticker}</h2>
+              <button className="close-button" onClick={() => setSelectedRun(null)}>
+                ✕
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="run-info">
+                <div className="info-item">
+                  <span className="label">Type:</span>
+                  <span className={`type-badge ${selectedRun.type}`}>{selectedRun.type}</span>
+                </div>
+                <div className="info-item">
+                  <span className="label">Date:</span>
+                  <span>{new Date(selectedRun.timestamp).toLocaleString()}</span>
+                </div>
+                <div className="info-item">
+                  <span className="label">Duration:</span>
+                  <span>{formatDuration(selectedRun.duration)}</span>
+                </div>
+                <div className="info-item">
+                  <span className="label">Tokens:</span>
+                  <span>{selectedRun.usage.total_tokens.toLocaleString()}</span>
+                </div>
+                <div className="info-item">
+                  <span className="label">Cost:</span>
+                  <span>{formatCost(selectedRun.cost.total_cost)}</span>
+                </div>
+              </div>
+
+              <div className="logs-section">
+                <h3>Execution Logs</h3>
+                {selectedRun.logs && selectedRun.logs.length > 0 ? (
+                  <div className="logs-container">
+                    {selectedRun.logs.map((log, index) => (
+                      <div key={index} className="log-entry">
+                        <span className="log-index">{index + 1}</span>
+                        <span className="log-text">{log}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="no-logs">
+                    <p>No logs available for this run</p>
+                  </div>
+                )}
+              </div>
+
+              {selectedRun.reportPath && (
+                <div className="report-path">
+                  <strong>Report:</strong> {selectedRun.reportPath}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

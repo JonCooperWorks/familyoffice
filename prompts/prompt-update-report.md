@@ -8,7 +8,7 @@ Today's date is ${currentDate}.
 
 ---
 
-## Current Market Data (Yahoo Finance)
+## Current Market Data
 
 ${marketData}
 

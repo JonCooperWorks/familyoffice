@@ -67,7 +67,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('get-metadata'),
   
   clearMetadata: (): Promise<boolean> =>
-    ipcRenderer.invoke('clear-metadata')
+    ipcRenderer.invoke('clear-metadata'),
+  
+  // Alpha Vantage API Key management
+  getAlphaVantageApiKey: (): Promise<string | null> =>
+    ipcRenderer.invoke('get-alphavantage-api-key'),
+  
+  setAlphaVantageApiKey: (apiKey: string): Promise<boolean> =>
+    ipcRenderer.invoke('set-alphavantage-api-key', apiKey),
+  
+  hasAlphaVantageApiKey: (): Promise<boolean> =>
+    ipcRenderer.invoke('has-alphavantage-api-key')
 });
 
 declare global {
@@ -89,6 +99,9 @@ declare global {
       saveMetadata: (metadata: any) => Promise<boolean>;
       getMetadata: () => Promise<any[]>;
       clearMetadata: () => Promise<boolean>;
+      getAlphaVantageApiKey: () => Promise<string | null>;
+      setAlphaVantageApiKey: (apiKey: string) => Promise<boolean>;
+      hasAlphaVantageApiKey: () => Promise<boolean>;
     };
   }
 }

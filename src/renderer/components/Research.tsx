@@ -15,6 +15,8 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState<string[]>([]);
   const [resultPath, setResultPath] = useState<string | null>(null);
+  const [showApiKeyPrompt, setShowApiKeyPrompt] = useState(false);
+  const [apiKey, setApiKey] = useState('');
 
   useEffect(() => {
     if (preloadedReport) {
@@ -42,6 +44,17 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
       return;
     }
 
+    // Check if API key is configured
+    const hasKey = await window.electronAPI.hasAlphaVantageApiKey();
+    if (!hasKey) {
+      setShowApiKeyPrompt(true);
+      return;
+    }
+
+    await startResearch();
+  };
+
+  const startResearch = async () => {
     setIsRunning(true);
     setOutput([]);
     setResultPath(null);
@@ -92,6 +105,22 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
     setResultPath(null);
     setIsRunning(false);
     onClearReport();
+  };
+
+  const handleSaveApiKey = async () => {
+    if (!apiKey.trim()) {
+      alert('Please enter a valid API key');
+      return;
+    }
+
+    try {
+      await window.electronAPI.setAlphaVantageApiKey(apiKey);
+      setShowApiKeyPrompt(false);
+      setApiKey('');
+      await startResearch();
+    } catch (error) {
+      alert('Failed to save API key');
+    }
   };
 
   return (
@@ -211,6 +240,48 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
           </div>
         )}
       </div>
+
+      {/* API Key Prompt Modal */}
+      {showApiKeyPrompt && (
+        <div className="modal-overlay" onClick={() => setShowApiKeyPrompt(false)}>
+          <div className="modal-content api-key-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Alpha Vantage API Key Required</h2>
+              <button className="close-button" onClick={() => setShowApiKeyPrompt(false)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>An Alpha Vantage API key is required to fetch market data.</p>
+              <p className="api-key-info">
+                Get a free API key at:{' '}
+                <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener noreferrer">
+                  https://www.alphavantage.co/support/#api-key
+                </a>
+              </p>
+              <div className="form-group">
+                <label htmlFor="apiKey">API Key</label>
+                <input
+                  id="apiKey"
+                  type="text"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Enter your Alpha Vantage API key"
+                  autoFocus
+                />
+              </div>
+              <div className="modal-actions">
+                <button onClick={() => setShowApiKeyPrompt(false)} className="cancel-button">
+                  Cancel
+                </button>
+                <button onClick={handleSaveApiKey} className="save-button">
+                  Save & Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

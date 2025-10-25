@@ -3,7 +3,7 @@ import { PromptLoader } from '../../utils/promptLoader';
 import type { App } from 'electron';
 import { join } from 'path';
 import { mkdir } from 'fs/promises';
-import { YahooFinanceService, type YahooFinanceQuote } from '../yahooFinanceService';
+import { AlphaVantageService, type AlphaVantageQuote } from '../alphaVantageService';
 
 export interface AgentConfig {
   model?: string;
@@ -66,25 +66,38 @@ export abstract class BaseAgent {
   }
 
   /**
-   * Fetch Yahoo Finance stock data
+   * Fetch stock data from Alpha Vantage
    */
-  protected async getYahooFinanceData(ticker: string): Promise<YahooFinanceQuote | null> {
+  protected async getMarketData(ticker: string, onProgress?: AgentProgress): Promise<AlphaVantageQuote | null> {
     try {
-      return await YahooFinanceService.getQuote(ticker);
+      if (!AlphaVantageService.hasApiKey()) {
+        onProgress?.(`⚠️ Alpha Vantage API key not configured - market data unavailable`);
+        return null;
+      }
+      
+      const quote = await AlphaVantageService.getQuote(ticker);
+      if (!quote) {
+        onProgress?.(`⚠️ Market data not available for ${ticker}`);
+      } else {
+        onProgress?.(`✓ Market data retrieved: $${quote.currentPrice.toFixed(2)}`);
+      }
+      return quote;
     } catch (error) {
-      console.error(`Failed to fetch Yahoo Finance data for ${ticker}:`, error);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      onProgress?.(`❌ Failed to fetch market data: ${errorMsg}`);
+      console.error(`Failed to fetch market data for ${ticker}:`, error);
       return null;
     }
   }
 
   /**
-   * Format Yahoo Finance data as markdown for inclusion in prompts
+   * Format market data as markdown for inclusion in prompts
    */
-  protected formatYahooFinanceData(quote: YahooFinanceQuote | null): string {
+  protected formatMarketData(quote: AlphaVantageQuote | null): string {
     if (!quote) {
       return '**Market Data**: Not available at this time.';
     }
-    return YahooFinanceService.formatQuoteMarkdown(quote);
+    return AlphaVantageService.formatQuoteMarkdown(quote);
   }
 
   /**
@@ -108,6 +121,17 @@ export abstract class BaseAgent {
     events: AsyncIterable<any>,
     onProgress?: AgentProgress
   ): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
+    return await this.processEventsWithStreaming(events, onProgress);
+  }
+
+  /**
+   * Process streaming events with optional streaming callback
+   */
+  protected async processEventsWithStreaming(
+    events: AsyncIterable<any>,
+    onProgress?: AgentProgress,
+    onStream?: (text: string) => void
+  ): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     let finalResponse = '';
     let hasResponse = false;
     let eventCount = 0;
@@ -125,10 +149,19 @@ export abstract class BaseAgent {
           this.handleItemStarted(event, onProgress);
           break;
         case 'item.updated':
+          if (event.item.type === 'agent_message') {
+            finalResponse = event.item.text;
+            hasResponse = true;
+            // Stream partial response if callback provided
+            onStream?.(event.item.text);
+          }
+          break;
         case 'item.completed':
           if (event.item.type === 'agent_message') {
             finalResponse = event.item.text;
             hasResponse = true;
+            // Stream final response if callback provided
+            onStream?.(event.item.text);
           }
           this.handleItemUpdatedOrCompleted(event, onProgress);
           break;
@@ -163,7 +196,17 @@ export abstract class BaseAgent {
     } else if (event.item.type === 'reasoning') {
       onProgress?.(`💭 Agent is thinking...`);
     } else if (event.item.type === 'command_execution') {
-      onProgress?.(`⚙️ Executing command: ${event.item.command}`);
+      onProgress?.(`⚙️ Executing: ${event.item.command}`);
+    } else if (event.item.type === 'file_read') {
+      onProgress?.(`📖 Reading file: ${event.item.path}`);
+    } else if (event.item.type === 'file_write') {
+      onProgress?.(`📝 Writing file: ${event.item.path}`);
+    } else if (event.item.type === 'file_edit') {
+      onProgress?.(`✏️ Editing file: ${event.item.path}`);
+    } else if (event.item.type === 'directory_list') {
+      onProgress?.(`📂 Listing directory: ${event.item.path}`);
+    } else if (event.item.type === 'bash') {
+      onProgress?.(`🐚 Running bash: ${event.item.command || event.item.script}`);
     } else if (this.debug) {
       onProgress?.(`⚙️ Item started: ${event.item.type}`);
     }
@@ -175,7 +218,8 @@ export abstract class BaseAgent {
   protected handleItemUpdatedOrCompleted(event: any, onProgress?: AgentProgress): void {
     if (event.type === 'item.completed') {
       if (event.item.type === 'web_search') {
-        onProgress?.(`✓ Search completed`);
+        const resultCount = event.item.results?.length || 0;
+        onProgress?.(`✓ Search completed (${resultCount} results)`);
       } else if (event.item.type === 'todo_list') {
         const todos = event.item.items.map((t: any, i: number) =>
           `${i + 1}. [${t.completed ? '✓' : ' '}] ${t.text}`
@@ -184,6 +228,34 @@ export abstract class BaseAgent {
       } else if (event.item.type === 'reasoning') {
         const thinkingSummary = event.item.text.substring(0, 150);
         onProgress?.(`💭 ${thinkingSummary}${event.item.text.length > 150 ? '...' : ''}`);
+      } else if (event.item.type === 'command_execution') {
+        const exitCode = event.item.exit_code !== undefined ? ` (exit ${event.item.exit_code})` : '';
+        onProgress?.(`✓ Command completed${exitCode}`);
+        if (event.item.stdout && event.item.stdout.trim()) {
+          const output = event.item.stdout.trim().substring(0, 200);
+          onProgress?.(`   Output: ${output}${event.item.stdout.length > 200 ? '...' : ''}`);
+        }
+        if (event.item.stderr && event.item.stderr.trim()) {
+          onProgress?.(`   ⚠️ Error: ${event.item.stderr.trim().substring(0, 200)}`);
+        }
+      } else if (event.item.type === 'bash') {
+        const exitCode = event.item.exit_code !== undefined ? ` (exit ${event.item.exit_code})` : '';
+        onProgress?.(`✓ Bash completed${exitCode}`);
+        if (event.item.output && event.item.output.trim()) {
+          const output = event.item.output.trim().substring(0, 200);
+          onProgress?.(`   Output: ${output}${event.item.output.length > 200 ? '...' : ''}`);
+        }
+      } else if (event.item.type === 'file_write') {
+        const size = event.item.size ? ` (${event.item.size} bytes)` : '';
+        onProgress?.(`✓ File written${size}: ${event.item.path}`);
+      } else if (event.item.type === 'file_read') {
+        const size = event.item.content?.length ? ` (${event.item.content.length} bytes)` : '';
+        onProgress?.(`✓ File read${size}: ${event.item.path}`);
+      } else if (event.item.type === 'file_edit') {
+        onProgress?.(`✓ File edited: ${event.item.path}`);
+      } else if (event.item.type === 'directory_list') {
+        const count = event.item.entries?.length || 0;
+        onProgress?.(`✓ Directory listed (${count} entries): ${event.item.path}`);
       }
     }
   }

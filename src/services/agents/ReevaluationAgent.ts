@@ -19,10 +19,10 @@ export class ReevaluationAgent extends BaseAgent {
   async run(request: ReevaluationRequest, onProgress?: AgentProgress): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     onProgress?.(`🔄 Starting reevaluation of ${request.companyName} (${request.ticker})...`);
 
-    // Fetch Yahoo Finance data
-    onProgress?.(`📊 Fetching market data from Yahoo Finance...`);
-    const yahooQuote = await this.getYahooFinanceData(request.ticker);
-    const marketData = this.formatYahooFinanceData(yahooQuote);
+    // Fetch market data
+    onProgress?.(`📊 Fetching market data...`);
+    const quote = await this.getMarketData(request.ticker, onProgress);
+    const marketData = this.formatMarketData(quote);
 
     // Create temp directory
     const tempDir = await this.createWorkingDirectory(request.ticker, 'reevaluate');
@@ -51,7 +51,7 @@ export class ReevaluationAgent extends BaseAgent {
 
     // Create thread and run
     const thread = this.createThread(tempDir);
-    onProgress?.('Running reevaluation...');
+    onProgress?.('🤖 Initializing agent...');
 
     try {
       const { events } = await thread.runStreamed(prompt);

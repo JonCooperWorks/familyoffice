@@ -32,10 +32,10 @@ export class ChatAgent extends BaseAgent {
       onProgress?.(`💬 Starting new chat thread about ${ticker}...`);
       onProgress?.(`📁 Temp directory: ${tempDir}`);
 
-      // Fetch Yahoo Finance data
-      onProgress?.(`📊 Fetching market data from Yahoo Finance...`);
-      const yahooQuote = await this.getYahooFinanceData(ticker);
-      const marketData = this.formatYahooFinanceData(yahooQuote);
+      // Fetch market data
+      onProgress?.(`📊 Fetching market data...`);
+      const quote = await this.getMarketData(ticker, onProgress);
+      const marketData = this.formatMarketData(quote);
 
       thread = this.createThread(tempDir);
       this.chatThreads.set(ticker, thread);
@@ -92,50 +92,9 @@ Please analyze my question in the context of both the main report and the refere
       onProgress?.(`📚 Including ${referenceReports.length} reference report(s): ${referenceReports.map(r => r.ticker).join(', ')}`);
     }
 
-    // Run the user's message
+    // Run the user's message using the unified event processor
     const { events } = await thread.runStreamed(finalMessage);
-
-    let finalResponse = '';
-    let usage: { input_tokens: number; output_tokens: number } | undefined;
-
-    for await (const event of events) {
-      switch (event.type) {
-        case 'item.started':
-          if (event.item.type === 'web_search') {
-            onProgress?.(`🔎 Searching: ${event.item.query}...`);
-          }
-          break;
-        case 'item.updated':
-          if (event.item.type === 'agent_message') {
-            finalResponse = event.item.text;
-            // Stream partial response as it's being generated
-            onStream?.(event.item.text);
-          }
-          break;
-        case 'item.completed':
-          if (event.item.type === 'agent_message') {
-            finalResponse = event.item.text;
-            // Final response update
-            onStream?.(event.item.text);
-          } else if (event.item.type === 'web_search') {
-            onProgress?.('Search completed');
-          }
-          break;
-        case 'turn.completed':
-          if (event.usage) {
-            usage = {
-              input_tokens: event.usage.input_tokens,
-              output_tokens: event.usage.output_tokens
-            };
-            onProgress?.(`📊 Tokens: ${event.usage.input_tokens} in, ${event.usage.output_tokens} out`);
-          }
-          break;
-        case 'turn.failed':
-          throw new Error(`Chat failed: ${event.error.message}`);
-      }
-    }
-
-    return { response: finalResponse, usage };
+    return await this.processEventsWithStreaming(events, onProgress, onStream);
   }
 
   /**
