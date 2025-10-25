@@ -5,8 +5,18 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Roboto",
+    "Oxygen",
+    "Ubuntu",
+    "Cantarell",
+    "Fira Sans",
+    "Droid Sans",
+    "Helvetica Neue",
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -21,25 +31,26 @@ body {
 }
 
 button {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   cursor: pointer;
   border: none;
   outline: none;
   transition: all 0.2s ease;
 }
 
-input, textarea {
-  font-family: 'Inter', sans-serif;
+input,
+textarea {
+  font-family: "Inter", sans-serif;
   border: 1px solid #d2d2d7;
   outline: none;
   transition: border-color 0.2s ease;
 }
 
-input:focus, textarea:focus {
+input:focus,
+textarea:focus {
   border-color: #0071e3;
 }
 
 code {
-  font-family: 'SF Mono', Monaco, Menlo, 'Courier New', monospace;
+  font-family: "SF Mono", Monaco, Menlo, "Courier New", monospace;
 }
-

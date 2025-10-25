@@ -1,5 +1,5 @@
-import { BaseAgent, type AgentConfig, type AgentProgress } from './BaseAgent';
-import type { App } from 'electron';
+import { BaseAgent, type AgentConfig, type AgentProgress } from "./BaseAgent";
+import type { App } from "electron";
 
 export interface ResearchRequest {
   companyName: string;
@@ -12,11 +12,19 @@ export class ResearchAgent extends BaseAgent {
   }
 
   protected getPromptName(): string {
-    return 'prompt-research-stock';
+    return "prompt-research-stock";
   }
 
-  async run(request: ResearchRequest, onProgress?: AgentProgress): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
-    onProgress?.(`🔍 Starting research on ${request.companyName} (${request.ticker})...`);
+  async run(
+    request: ResearchRequest,
+    onProgress?: AgentProgress,
+  ): Promise<{
+    response: string;
+    usage?: { input_tokens: number; output_tokens: number };
+  }> {
+    onProgress?.(
+      `🔍 Starting research on ${request.companyName} (${request.ticker})...`,
+    );
 
     // Fetch market data
     onProgress?.(`📊 Fetching market data...`);
@@ -24,7 +32,10 @@ export class ResearchAgent extends BaseAgent {
     const marketData = this.formatMarketData(quote);
 
     // Create temp directory
-    const tempDir = await this.createWorkingDirectory(request.ticker, 'research');
+    const tempDir = await this.createWorkingDirectory(
+      request.ticker,
+      "research",
+    );
     onProgress?.(`📁 Temp directory: ${tempDir}`);
 
     // Load and fill prompt template
@@ -39,7 +50,7 @@ export class ResearchAgent extends BaseAgent {
 
     // Create thread and run
     const thread = this.createThread(tempDir);
-    onProgress?.('🤖 Initializing agent...');
+    onProgress?.("🤖 Initializing agent...");
 
     try {
       const { events } = await thread.runStreamed(prompt);
@@ -49,4 +60,3 @@ export class ResearchAgent extends BaseAgent {
     }
   }
 }
-

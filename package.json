@@ -19,8 +19,6 @@
   "dependencies": {
     "@fontsource/inter": "^5.0.16",
     "@openai/codex-sdk": "^0.46.0",
-    "commander": "^11.0.0",
-    "dotenv": "^16.0.0",
     "fix-path": "^4.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -30,7 +28,6 @@
     "remark-gfm": "4.0.1"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "28.0.6",
     "@types/node": "^20.11.5",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",

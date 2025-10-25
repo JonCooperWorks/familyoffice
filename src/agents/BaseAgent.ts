@@ -1,5 +1,5 @@
-import { Codex, type Thread } from '@openai/codex-sdk';
-import { PromptLoader } from '../utils/promptLoader.js';
+import { Codex, type Thread } from "@openai/codex-sdk";
+import { PromptLoader } from "../utils/promptLoader.js";
 
 export interface AgentConfig {
   model?: string;
@@ -22,7 +22,7 @@ export abstract class BaseAgent {
   constructor(config: AgentConfig = {}) {
     this.codex = new Codex(config.apiKey ? { apiKey: config.apiKey } : {});
     this.promptLoader = new PromptLoader();
-    this.model = config.model || '';
+    this.model = config.model || "";
     this.debug = config.debug || false;
   }
 
@@ -34,10 +34,16 @@ export abstract class BaseAgent {
   /**
    * Create the working directory for this agent run
    */
-  protected async createWorkingDirectory(ticker: string, suffix: string): Promise<string> {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+  protected async createWorkingDirectory(
+    ticker: string,
+    suffix: string,
+  ): Promise<string> {
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .slice(0, -5);
     const tempDir = `./temp/${ticker}-${suffix}-${timestamp}`;
-    const fs = await import('fs/promises');
+    const fs = await import("fs/promises");
     await fs.mkdir(tempDir, { recursive: true });
     return tempDir;
   }
@@ -46,11 +52,11 @@ export abstract class BaseAgent {
    * Get current date in readable format
    */
   protected getCurrentDate(): string {
-    return new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   }
 
@@ -62,7 +68,7 @@ export abstract class BaseAgent {
       ...(this.model && { model: this.model }),
       workingDirectory,
       skipGitRepoCheck: true,
-      sandboxMode: 'danger-full-access',
+      sandboxMode: "danger-full-access",
     });
     this.thread = thread;
     return thread;
@@ -73,9 +79,9 @@ export abstract class BaseAgent {
    */
   protected async processEvents(
     events: AsyncIterable<any>,
-    onProgress?: AgentProgress
+    onProgress?: AgentProgress,
   ): Promise<string> {
-    let finalResponse = '';
+    let finalResponse = "";
     let hasResponse = false;
     let eventCount = 0;
 
@@ -87,30 +93,34 @@ export abstract class BaseAgent {
       }
 
       switch (event.type) {
-        case 'item.started':
+        case "item.started":
           this.handleItemStarted(event, onProgress);
           break;
-        case 'item.updated':
-        case 'item.completed':
-          if (event.item.type === 'agent_message') {
+        case "item.updated":
+        case "item.completed":
+          if (event.item.type === "agent_message") {
             finalResponse = event.item.text;
             hasResponse = true;
           }
           this.handleItemUpdatedOrCompleted(event, onProgress);
           break;
-        case 'turn.completed':
+        case "turn.completed":
           onProgress?.(`✅ Task completed!`);
           if (event.usage) {
-            onProgress?.(`   Tokens: ${event.usage.input_tokens} in, ${event.usage.output_tokens} out`);
+            onProgress?.(
+              `   Tokens: ${event.usage.input_tokens} in, ${event.usage.output_tokens} out`,
+            );
           }
           break;
-        case 'turn.failed':
+        case "turn.failed":
           throw new Error(`Task failed: ${event.error.message}`);
       }
     }
 
     if (!hasResponse || !finalResponse) {
-      throw new Error('No response generated. The agent may need a different prompt or model configuration.');
+      throw new Error(
+        "No response generated. The agent may need a different prompt or model configuration.",
+      );
     }
 
     return finalResponse;
@@ -120,11 +130,11 @@ export abstract class BaseAgent {
    * Handle item started events
    */
   protected handleItemStarted(event: any, onProgress?: AgentProgress): void {
-    if (event.item.type === 'web_search') {
+    if (event.item.type === "web_search") {
       onProgress?.(`  🔎 Searching: ${event.item.query}`);
-    } else if (event.item.type === 'reasoning') {
+    } else if (event.item.type === "reasoning") {
       onProgress?.(`  💭 Agent is thinking...`);
-    } else if (event.item.type === 'command_execution') {
+    } else if (event.item.type === "command_execution") {
       onProgress?.(`  ⚙️  Executing command: ${event.item.command}`);
     } else if (this.debug) {
       onProgress?.(`  ⚙️  Item started: ${event.item.type}`);
@@ -134,18 +144,26 @@ export abstract class BaseAgent {
   /**
    * Handle item updated or completed events
    */
-  protected handleItemUpdatedOrCompleted(event: any, onProgress?: AgentProgress): void {
-    if (event.type === 'item.completed') {
-      if (event.item.type === 'web_search') {
+  protected handleItemUpdatedOrCompleted(
+    event: any,
+    onProgress?: AgentProgress,
+  ): void {
+    if (event.type === "item.completed") {
+      if (event.item.type === "web_search") {
         onProgress?.(`  ✓ Search completed`);
-      } else if (event.item.type === 'todo_list') {
-        const todos = event.item.items.map((t: any, i: number) =>
-          `${i + 1}. [${t.completed ? '✓' : ' '}] ${t.text}`
-        ).join('\n     ');
+      } else if (event.item.type === "todo_list") {
+        const todos = event.item.items
+          .map(
+            (t: any, i: number) =>
+              `${i + 1}. [${t.completed ? "✓" : " "}] ${t.text}`,
+          )
+          .join("\n     ");
         onProgress?.(`  📋 Plan:\n     ${todos}`);
-      } else if (event.item.type === 'reasoning') {
+      } else if (event.item.type === "reasoning") {
         const thinkingSummary = event.item.text.substring(0, 150);
-        onProgress?.(`  💭 ${thinkingSummary}${event.item.text.length > 150 ? '...' : ''}`);
+        onProgress?.(
+          `  💭 ${thinkingSummary}${event.item.text.length > 150 ? "..." : ""}`,
+        );
       }
     }
   }
@@ -158,4 +176,3 @@ export abstract class BaseAgent {
     // Child classes can override for additional cleanup
   }
 }
-

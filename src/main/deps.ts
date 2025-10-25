@@ -1,6 +1,6 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import type { DependencyStatus } from '../shared/types';
+import { exec } from "child_process";
+import { promisify } from "util";
+import type { DependencyStatus } from "../shared/types";
 
 const execAsync = promisify(exec);
 
@@ -9,39 +9,37 @@ export class DependencyManager {
     const codex = await this.checkCodex();
 
     return {
-      codex
+      codex,
     };
   }
 
-
   private async checkCodex() {
     try {
-      const { stdout: version } = await execAsync('codex --version');
-      
+      const { stdout: version } = await execAsync("codex --version");
+
       // Check if authenticated by trying to run codex with a simple command
       try {
         // This will fail if not authenticated
-        await execAsync('codex --help', { timeout: 5000 });
+        await execAsync("codex --help", { timeout: 5000 });
         return {
           installed: true,
           authenticated: true,
-          version: version.trim()
+          version: version.trim(),
         };
       } catch {
         return {
           installed: true,
           authenticated: false,
-          version: version.trim()
+          version: version.trim(),
         };
       }
     } catch {
       return {
         installed: false,
-        authenticated: false
+        authenticated: false,
       };
     }
   }
-
 
   getInstallInstructions(): string {
     return `To install Codex CLI:
@@ -53,4 +51,3 @@ export class DependencyManager {
 5. Return here and click "Check Again"`;
   }
 }
-

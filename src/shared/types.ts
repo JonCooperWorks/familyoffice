@@ -13,7 +13,7 @@ export interface ResearchRequest {
 }
 
 export interface ChatMessage {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   timestamp: Date;
   id?: number; // Optional ID for tracking streaming messages
@@ -25,25 +25,24 @@ export interface Report {
   ticker: string;
   company?: string;
   date: Date;
-  type: 'research' | 'reevaluation';
+  type: "research" | "reevaluation";
 }
 
 export interface DockerOutput {
-  type: 'stdout' | 'stderr';
+  type: "stdout" | "stderr";
   data: string;
 }
 
-export type IPCChannels = 
-  | 'check-dependencies'
-  | 'run-research'
-  | 'run-chat'
-  | 'update-report'
-  | 'get-reports'
-  | 'open-report'
-  | 'read-report'
-  | 'export-report'
-  | 'delete-report'
-  | 'docker-output' // Still used for agent output streaming
-  | 'process-complete'
-  | 'process-error';
-
+export type IPCChannels =
+  | "check-dependencies"
+  | "run-research"
+  | "run-chat"
+  | "update-report"
+  | "get-reports"
+  | "open-report"
+  | "read-report"
+  | "export-report"
+  | "delete-report"
+  | "docker-output" // Still used for agent output streaming
+  | "process-complete"
+  | "process-error";

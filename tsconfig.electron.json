@@ -18,4 +18,3 @@
   },
   "include": ["src/main", "src/shared", "src/services", "src/utils"]
 }
-

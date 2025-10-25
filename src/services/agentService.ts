@@ -1,16 +1,23 @@
-import { app } from 'electron';
-import fixPath from 'fix-path';
+import { app } from "electron";
+import fixPath from "fix-path";
 
 // Base Agent Classes
-import type { AgentConfig } from './agents/BaseAgent';
-import { ResearchAgent, type ResearchRequest } from './agents/ResearchAgent';
-import { ReevaluationAgent, type ReevaluationRequest } from './agents/ReevaluationAgent';
-import { ChatAgent } from './agents/ChatAgent';
-import { UpdateAgent, type UpdateRequest, type ChatHistoryMessage } from './agents/UpdateAgent';
-import { CheckerAgent, type CheckerRequest } from './agents/CheckerAgent';
+import type { AgentConfig } from "./agents/BaseAgent";
+import { ResearchAgent, type ResearchRequest } from "./agents/ResearchAgent";
+import {
+  ReevaluationAgent,
+  type ReevaluationRequest,
+} from "./agents/ReevaluationAgent";
+import { ChatAgent } from "./agents/ChatAgent";
+import {
+  UpdateAgent,
+  type UpdateRequest,
+  type ChatHistoryMessage,
+} from "./agents/UpdateAgent";
+import { CheckerAgent, type CheckerRequest } from "./agents/CheckerAgent";
 
 export interface ChatMessage {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
 }
 
@@ -25,15 +32,15 @@ export class AgentService {
   constructor(config: AgentConfig = {}) {
     // Fix PATH environment variable for Electron to find system binaries
     fixPath();
-    
+
     // Set the CODEX_BINARY environment variable to use system codex
-    process.env.CODEX_BINARY = '/opt/homebrew/bin/codex';
-    
+    process.env.CODEX_BINARY = "/opt/homebrew/bin/codex";
+
     this.config = {
       ...config,
       // Ensure we pass the fixed environment
       apiKey: config.apiKey,
-      model: config.model || '',
+      model: config.model || "",
       debug: config.debug || false,
     };
   }
@@ -41,7 +48,13 @@ export class AgentService {
   /**
    * Run research on a stock
    */
-  async research(request: ResearchRequest, onProgress?: (message: string) => void): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
+  async research(
+    request: ResearchRequest,
+    onProgress?: (message: string) => void,
+  ): Promise<{
+    response: string;
+    usage?: { input_tokens: number; output_tokens: number };
+  }> {
     const agent = new ResearchAgent(this.config, app);
     try {
       return await agent.run(request, onProgress);
@@ -53,7 +66,13 @@ export class AgentService {
   /**
    * Reevaluate an existing research report
    */
-  async reevaluate(request: ReevaluationRequest, onProgress?: (message: string) => void): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
+  async reevaluate(
+    request: ReevaluationRequest,
+    onProgress?: (message: string) => void,
+  ): Promise<{
+    response: string;
+    usage?: { input_tokens: number; output_tokens: number };
+  }> {
     const agent = new ReevaluationAgent(this.config, app);
     try {
       return await agent.run(request, onProgress);
@@ -65,13 +84,17 @@ export class AgentService {
   /**
    * Run a quality checker pass on a report
    */
-  async check(ticker: string, reportContent: string, onProgress?: (message: string) => void): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
+  async check(
+    ticker: string,
+    reportContent: string,
+    onProgress?: (message: string) => void,
+  ): Promise<{
+    response: string;
+    usage?: { input_tokens: number; output_tokens: number };
+  }> {
     const agent = new CheckerAgent(this.config, app);
     try {
-      return await agent.run(
-        { ticker, reportContent },
-        onProgress
-      );
+      return await agent.run({ ticker, reportContent }, onProgress);
     } finally {
       agent.cleanup();
     }
@@ -86,8 +109,11 @@ export class AgentService {
     reportContent?: string,
     onProgress?: (message: string) => void,
     onStream?: (text: string) => void,
-    referenceReports?: Array<{ticker: string, content: string}>
-  ): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
+    referenceReports?: Array<{ ticker: string; content: string }>,
+  ): Promise<{
+    response: string;
+    usage?: { input_tokens: number; output_tokens: number };
+  }> {
     // Get or create a chat agent for this ticker
     let chatAgent = this.chatAgents.get(ticker);
     if (!chatAgent) {
@@ -95,7 +121,14 @@ export class AgentService {
       this.chatAgents.set(ticker, chatAgent);
     }
 
-    return await chatAgent.run(ticker, message, reportContent, onProgress, onStream, referenceReports);
+    return await chatAgent.run(
+      ticker,
+      message,
+      reportContent,
+      onProgress,
+      onStream,
+      referenceReports,
+    );
   }
 
   /**
@@ -103,15 +136,15 @@ export class AgentService {
    */
   async updateReport(
     ticker: string,
-    chatHistory?: Array<{role: string, content: string, timestamp: string}>,
-    onProgress?: (message: string) => void
-  ): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
+    chatHistory?: Array<{ role: string; content: string; timestamp: string }>,
+    onProgress?: (message: string) => void,
+  ): Promise<{
+    response: string;
+    usage?: { input_tokens: number; output_tokens: number };
+  }> {
     const agent = new UpdateAgent(this.config, app);
     try {
-      return await agent.run(
-        { ticker, chatHistory },
-        onProgress
-      );
+      return await agent.run({ ticker, chatHistory }, onProgress);
     } finally {
       agent.cleanup();
     }
@@ -121,8 +154,8 @@ export class AgentService {
    * Get thread ID for a chat session (for compatibility)
    */
   getThreadId(key: string): string | null {
-    const chatAgent = this.chatAgents.get(key.replace('chat-', ''));
-    const thread = chatAgent?.getThread(key.replace('chat-', ''));
+    const chatAgent = this.chatAgents.get(key.replace("chat-", ""));
+    const thread = chatAgent?.getThread(key.replace("chat-", ""));
     return thread?.id || null;
   }
 
@@ -131,10 +164,17 @@ export class AgentService {
    */
   async cleanup(): Promise<void> {
     // Clean up all chat agents
-    this.chatAgents.forEach(agent => agent.cleanup());
+    this.chatAgents.forEach((agent) => agent.cleanup());
     this.chatAgents.clear();
   }
 }
 
 // Re-export types for convenience
-export type { AgentConfig, ResearchRequest, ReevaluationRequest, UpdateRequest, CheckerRequest, ChatHistoryMessage };
+export type {
+  AgentConfig,
+  ResearchRequest,
+  ReevaluationRequest,
+  UpdateRequest,
+  CheckerRequest,
+  ChatHistoryMessage,
+};

@@ -1,4 +1,4 @@
-import https from 'https';
+import https from "https";
 
 export interface AlphaVantageQuote {
   symbol: string;
@@ -15,7 +15,7 @@ export interface AlphaVantageQuote {
 }
 
 export class AlphaVantageService {
-  private static readonly API_BASE = 'www.alphavantage.co';
+  private static readonly API_BASE = "www.alphavantage.co";
   private static apiKey: string | null = null;
 
   /**
@@ -44,30 +44,32 @@ export class AlphaVantageService {
    */
   static async getQuote(ticker: string): Promise<AlphaVantageQuote | null> {
     if (!this.hasApiKey()) {
-      throw new Error('Alpha Vantage API key not set');
+      throw new Error("Alpha Vantage API key not set");
     }
 
     try {
       const url = `/query?function=GLOBAL_QUOTE&symbol=${ticker.toUpperCase()}&apikey=${this.apiKey}`;
-      
+
       const data = await this.makeRequest(url);
-      const quote = data?.['Global Quote'];
-      
+      const quote = data?.["Global Quote"];
+
       if (!quote || Object.keys(quote).length === 0) {
         console.warn(`No data found for ticker: ${ticker}`);
         return null;
       }
 
       // Alpha Vantage returns keys like "01. symbol", "05. price", etc.
-      const symbol = quote['01. symbol'] || ticker.toUpperCase();
-      const price = parseFloat(quote['05. price'] || '0');
-      const change = parseFloat(quote['09. change'] || '0');
-      const changePercent = parseFloat((quote['10. change percent'] || '0').replace('%', ''));
-      const volume = parseInt(quote['06. volume'] || '0');
-      const previousClose = parseFloat(quote['08. previous close'] || '0');
-      const open = parseFloat(quote['02. open'] || '0');
-      const high = parseFloat(quote['03. high'] || '0');
-      const low = parseFloat(quote['04. low'] || '0');
+      const symbol = quote["01. symbol"] || ticker.toUpperCase();
+      const price = parseFloat(quote["05. price"] || "0");
+      const change = parseFloat(quote["09. change"] || "0");
+      const changePercent = parseFloat(
+        (quote["10. change percent"] || "0").replace("%", ""),
+      );
+      const volume = parseInt(quote["06. volume"] || "0");
+      const previousClose = parseFloat(quote["08. previous close"] || "0");
+      const open = parseFloat(quote["02. open"] || "0");
+      const high = parseFloat(quote["03. high"] || "0");
+      const low = parseFloat(quote["04. low"] || "0");
 
       return {
         symbol,
@@ -80,7 +82,7 @@ export class AlphaVantageService {
         open,
         high,
         low,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       console.error(`Error fetching Alpha Vantage data for ${ticker}:`, error);
@@ -92,13 +94,17 @@ export class AlphaVantageService {
    * Format quote data as readable markdown
    */
   static formatQuoteMarkdown(quote: AlphaVantageQuote): string {
-    const formatNumber = (num: number | undefined, prefix = '', suffix = '') => {
-      if (num === undefined || num === null || isNaN(num)) return 'N/A';
-      return `${prefix}${num.toLocaleString('en-US', { maximumFractionDigits: 2 })}${suffix}`;
+    const formatNumber = (
+      num: number | undefined,
+      prefix = "",
+      suffix = "",
+    ) => {
+      if (num === undefined || num === null || isNaN(num)) return "N/A";
+      return `${prefix}${num.toLocaleString("en-US", { maximumFractionDigits: 2 })}${suffix}`;
     };
 
-    const changeSymbol = quote.change >= 0 ? '▲' : '▼';
-    const changeColor = quote.change >= 0 ? '+' : '';
+    const changeSymbol = quote.change >= 0 ? "▲" : "▼";
+    const changeColor = quote.change >= 0 ? "+" : "";
 
     return `## Market Data: ${quote.symbol}
 
@@ -122,25 +128,29 @@ export class AlphaVantageService {
       const options = {
         hostname: this.API_BASE,
         path: path,
-        method: 'GET',
+        method: "GET",
         headers: {
-          'User-Agent': 'FamilyOffice/1.0',
-          'Accept': 'application/json'
-        }
+          "User-Agent": "FamilyOffice/1.0",
+          Accept: "application/json",
+        },
       };
 
       const req = https.request(options, (res) => {
         const chunks: Buffer[] = [];
 
-        res.on('data', (chunk) => {
+        res.on("data", (chunk) => {
           chunks.push(Buffer.from(chunk));
         });
 
-        res.on('end', () => {
+        res.on("end", () => {
           // Check HTTP status
           if (res.statusCode && res.statusCode !== 200) {
             const body = Buffer.concat(chunks).toString();
-            reject(new Error(`Alpha Vantage API returned ${res.statusCode}: ${body.substring(0, 200)}`));
+            reject(
+              new Error(
+                `Alpha Vantage API returned ${res.statusCode}: ${body.substring(0, 200)}`,
+              ),
+            );
             return;
           }
 
@@ -148,37 +158,42 @@ export class AlphaVantageService {
             const buffer = Buffer.concat(chunks);
             const data = buffer.toString();
             const parsed = JSON.parse(data);
-            
+
             // Check for API error messages
-            if (parsed['Error Message']) {
-              reject(new Error(`Alpha Vantage error: ${parsed['Error Message']}`));
+            if (parsed["Error Message"]) {
+              reject(
+                new Error(`Alpha Vantage error: ${parsed["Error Message"]}`),
+              );
               return;
             }
-            
-            if (parsed['Note']) {
-              reject(new Error(`Alpha Vantage rate limit: ${parsed['Note']}`));
+
+            if (parsed["Note"]) {
+              reject(new Error(`Alpha Vantage rate limit: ${parsed["Note"]}`));
               return;
             }
-            
+
             resolve(parsed);
           } catch (error) {
             const data = Buffer.concat(chunks).toString().substring(0, 200);
-            reject(new Error(`Failed to parse response: ${error}. Response: ${data}`));
+            reject(
+              new Error(
+                `Failed to parse response: ${error}. Response: ${data}`,
+              ),
+            );
           }
         });
       });
 
-      req.on('error', (error) => {
+      req.on("error", (error) => {
         reject(error);
       });
 
       req.setTimeout(15000, () => {
         req.destroy();
-        reject(new Error('Request timeout'));
+        reject(new Error("Request timeout"));
       });
 
       req.end();
     });
   }
 }
-

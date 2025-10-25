@@ -1,5 +1,5 @@
-import { BaseAgent, type AgentConfig, type AgentProgress } from './BaseAgent';
-import type { App } from 'electron';
+import { BaseAgent, type AgentConfig, type AgentProgress } from "./BaseAgent";
+import type { App } from "electron";
 
 export interface CheckerRequest {
   ticker: string;
@@ -12,10 +12,16 @@ export class CheckerAgent extends BaseAgent {
   }
 
   protected getPromptName(): string {
-    return 'prompt-checker-pass';
+    return "prompt-checker-pass";
   }
 
-  async run(request: CheckerRequest, onProgress?: AgentProgress): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
+  async run(
+    request: CheckerRequest,
+    onProgress?: AgentProgress,
+  ): Promise<{
+    response: string;
+    usage?: { input_tokens: number; output_tokens: number };
+  }> {
     onProgress?.(`✅ Running quality check on ${request.ticker} report...`);
 
     // Fetch market data
@@ -24,11 +30,14 @@ export class CheckerAgent extends BaseAgent {
     const marketData = this.formatMarketData(quote);
 
     // Create temp directory
-    const tempDir = await this.createWorkingDirectory(request.ticker, 'checker');
+    const tempDir = await this.createWorkingDirectory(
+      request.ticker,
+      "checker",
+    );
     onProgress?.(`📁 Temp directory: ${tempDir}`);
 
     if (this.debug) {
-      onProgress?.('📝 Preparing checker prompt...');
+      onProgress?.("📝 Preparing checker prompt...");
       onProgress?.(`Report length: ${request.reportContent.length} characters`);
     }
 
@@ -48,7 +57,7 @@ export class CheckerAgent extends BaseAgent {
 
     // Create thread and run
     const thread = this.createThread(tempDir);
-    onProgress?.('Running quality checks...');
+    onProgress?.("Running quality checks...");
 
     try {
       const { events } = await thread.runStreamed(prompt);
@@ -58,4 +67,3 @@ export class CheckerAgent extends BaseAgent {
     }
   }
 }
-

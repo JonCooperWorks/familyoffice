@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
-import type { DependencyStatus } from '../../shared/types';
-import './DepsCheck.css';
+import { useEffect } from "react";
+import type { DependencyStatus } from "../../shared/types";
+import "./DepsCheck.css";
 
 interface DepsCheckProps {
   status: DependencyStatus;
@@ -10,9 +10,8 @@ interface DepsCheckProps {
 function DepsCheck({ status, onComplete }: DepsCheckProps) {
   // Auto-continue when all dependencies are satisfied
   useEffect(() => {
-    const allSatisfied = status.codex.installed && 
-                         status.codex.authenticated;
-    
+    const allSatisfied = status.codex.installed && status.codex.authenticated;
+
     if (allSatisfied) {
       // Small delay to show success state before continuing
       const timer = setTimeout(() => {
@@ -30,15 +29,21 @@ function DepsCheck({ status, onComplete }: DepsCheckProps) {
 
         <div className="deps-list">
           {/* Codex */}
-          <div className={`dep-item ${status.codex.installed && status.codex.authenticated ? 'success' : 'error'}`}>
+          <div
+            className={`dep-item ${status.codex.installed && status.codex.authenticated ? "success" : "error"}`}
+          >
             <div className="dep-info">
               <div className="dep-icon">
-                {status.codex.installed && status.codex.authenticated ? '✅' : '❌'}
+                {status.codex.installed && status.codex.authenticated
+                  ? "✅"
+                  : "❌"}
               </div>
               <div>
                 <h3>Codex CLI</h3>
                 {status.codex.installed && status.codex.authenticated ? (
-                  <p className="success-msg">Authenticated • {status.codex.version}</p>
+                  <p className="success-msg">
+                    Authenticated • {status.codex.version}
+                  </p>
                 ) : status.codex.installed ? (
                   <p className="error-msg">Not authenticated</p>
                 ) : (
@@ -56,7 +61,6 @@ function DepsCheck({ status, onComplete }: DepsCheckProps) {
               </div>
             )}
           </div>
-
         </div>
 
         <div className="deps-footer">
@@ -70,4 +74,3 @@ function DepsCheck({ status, onComplete }: DepsCheckProps) {
 }
 
 export default DepsCheck;
-

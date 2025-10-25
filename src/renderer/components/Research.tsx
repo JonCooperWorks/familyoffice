@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import type { ResearchRequest } from '../../shared/types';
-import './Research.css';
+import { useState, useEffect } from "react";
+import type { ResearchRequest } from "../../shared/types";
+import "./Research.css";
 
 interface ResearchProps {
   preloadedReport?: string;
@@ -8,21 +8,21 @@ interface ResearchProps {
 }
 
 function Research({ preloadedReport, onClearReport }: ResearchProps) {
-  const [ticker, setTicker] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [mode, setMode] = useState<'new' | 'reevaluate'>('new');
-  const [reportPath, setReportPath] = useState('');
+  const [ticker, setTicker] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [mode, setMode] = useState<"new" | "reevaluate">("new");
+  const [reportPath, setReportPath] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState<string[]>([]);
   const [resultPath, setResultPath] = useState<string | null>(null);
   const [showApiKeyPrompt, setShowApiKeyPrompt] = useState(false);
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState("");
 
   useEffect(() => {
     if (preloadedReport) {
       setReportPath(preloadedReport);
-      setMode('reevaluate');
-      
+      setMode("reevaluate");
+
       // Extract ticker from filename
       const match = preloadedReport.match(/research-([A-Z]+)-/);
       if (match) {
@@ -33,14 +33,14 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!ticker) {
-      alert('Please enter a ticker symbol');
+      alert("Please enter a ticker symbol");
       return;
     }
 
-    if (mode === 'reevaluate' && !reportPath) {
-      alert('Please enter a report path');
+    if (mode === "reevaluate" && !reportPath) {
+      alert("Please enter a report path");
       return;
     }
 
@@ -60,7 +60,7 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
     setResultPath(null);
 
     const cleanupOutput = window.electronAPI.onDockerOutput((data) => {
-      setOutput(prev => [...prev, data.data]);
+      setOutput((prev) => [...prev, data.data]);
     });
 
     const cleanupComplete = window.electronAPI.onProcessComplete((result) => {
@@ -69,7 +69,7 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
     });
 
     const cleanupError = window.electronAPI.onProcessError((error) => {
-      setOutput(prev => [...prev, `\n❌ Error: ${error}\n`]);
+      setOutput((prev) => [...prev, `\n❌ Error: ${error}\n`]);
       setIsRunning(false);
     });
 
@@ -77,12 +77,12 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
       const request: ResearchRequest = {
         ticker: ticker.toUpperCase(),
         companyName: companyName || undefined,
-        reportPath: mode === 'reevaluate' ? reportPath : undefined
+        reportPath: mode === "reevaluate" ? reportPath : undefined,
       };
 
       await window.electronAPI.runResearch(request);
     } catch (error) {
-      console.error('Research error:', error);
+      console.error("Research error:", error);
     } finally {
       cleanupOutput();
       cleanupComplete();
@@ -97,10 +97,10 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
   };
 
   const handleReset = () => {
-    setTicker('');
-    setCompanyName('');
-    setMode('new');
-    setReportPath('');
+    setTicker("");
+    setCompanyName("");
+    setMode("new");
+    setReportPath("");
     setOutput([]);
     setResultPath(null);
     setIsRunning(false);
@@ -109,17 +109,17 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
 
   const handleSaveApiKey = async () => {
     if (!apiKey.trim()) {
-      alert('Please enter a valid API key');
+      alert("Please enter a valid API key");
       return;
     }
 
     try {
       await window.electronAPI.setAlphaVantageApiKey(apiKey);
       setShowApiKeyPrompt(false);
-      setApiKey('');
+      setApiKey("");
       await startResearch();
     } catch (error) {
-      alert('Failed to save API key');
+      alert("Failed to save API key");
     }
   };
 
@@ -128,7 +128,8 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
       <div className="research-container">
         <h2>Stock Research</h2>
         <p className="description">
-          Generate comprehensive equity research reports with AI-powered analysis
+          Generate comprehensive equity research reports with AI-powered
+          analysis
         </p>
 
         <form onSubmit={handleSubmit} className="research-form">
@@ -165,8 +166,8 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
                 <input
                   type="radio"
                   value="new"
-                  checked={mode === 'new'}
-                  onChange={() => setMode('new')}
+                  checked={mode === "new"}
+                  onChange={() => setMode("new")}
                   disabled={isRunning}
                 />
                 New Research
@@ -175,8 +176,8 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
                 <input
                   type="radio"
                   value="reevaluate"
-                  checked={mode === 'reevaluate'}
-                  onChange={() => setMode('reevaluate')}
+                  checked={mode === "reevaluate"}
+                  onChange={() => setMode("reevaluate")}
                   disabled={isRunning}
                 />
                 Reevaluate Existing Report
@@ -184,7 +185,7 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
             </div>
           </div>
 
-          {mode === 'reevaluate' && (
+          {mode === "reevaluate" && (
             <div className="form-group">
               <label htmlFor="report">Report Path *</label>
               <input
@@ -205,7 +206,7 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
               className="submit-button"
               disabled={isRunning}
             >
-              {isRunning ? 'Generating...' : 'Generate Report'}
+              {isRunning ? "Generating..." : "Generate Report"}
             </button>
             {(output.length > 0 || resultPath) && (
               <button
@@ -223,7 +224,7 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
         {output.length > 0 && (
           <div className="output-container">
             <h3>Output</h3>
-            <pre className="output">{output.join('')}</pre>
+            <pre className="output">{output.join("")}</pre>
           </div>
         )}
 
@@ -243,19 +244,32 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
 
       {/* API Key Prompt Modal */}
       {showApiKeyPrompt && (
-        <div className="modal-overlay" onClick={() => setShowApiKeyPrompt(false)}>
-          <div className="modal-content api-key-modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowApiKeyPrompt(false)}
+        >
+          <div
+            className="modal-content api-key-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <h2>Alpha Vantage API Key Required</h2>
-              <button className="close-button" onClick={() => setShowApiKeyPrompt(false)}>
+              <button
+                className="close-button"
+                onClick={() => setShowApiKeyPrompt(false)}
+              >
                 ✕
               </button>
             </div>
             <div className="modal-body">
               <p>An Alpha Vantage API key is required to fetch market data.</p>
               <p className="api-key-info">
-                Get a free API key at:{' '}
-                <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener noreferrer">
+                Get a free API key at:{" "}
+                <a
+                  href="https://www.alphavantage.co/support/#api-key"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   https://www.alphavantage.co/support/#api-key
                 </a>
               </p>
@@ -271,7 +285,10 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
                 />
               </div>
               <div className="modal-actions">
-                <button onClick={() => setShowApiKeyPrompt(false)} className="cancel-button">
+                <button
+                  onClick={() => setShowApiKeyPrompt(false)}
+                  className="cancel-button"
+                >
                   Cancel
                 </button>
                 <button onClick={handleSaveApiKey} className="save-button">
@@ -287,4 +304,3 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
 }
 
 export default Research;
-

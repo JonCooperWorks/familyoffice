@@ -1,12 +1,32 @@
-import { useState, useEffect } from 'react';
-import { getAllMetadata, getMetadataStats, exportMetadata, clearMetadata, formatCost, formatDuration, type ResearchMetadata } from '../utils/metadataViewer';
-import './Stats.css';
+import { useState, useEffect } from "react";
+import {
+  getAllMetadata,
+  getMetadataStats,
+  exportMetadata,
+  clearMetadata,
+  formatCost,
+  formatDuration,
+  type ResearchMetadata,
+} from "../utils/metadataViewer";
+import "./Stats.css";
+
+interface MetadataStats {
+  totalRuns: number;
+  totalTokens: number;
+  totalCost: number;
+  averageCost: number;
+  averageDuration: number;
+  byType: Record<string, number>;
+  byTicker: Record<string, { count: number; totalCost: number }>;
+  mostExpensiveTicker?: [string, { count: number; totalCost: number }];
+  mostResearchedTicker?: [string, { count: number; totalCost: number }];
+}
 
 function Stats() {
   const [metadata, setMetadata] = useState<ResearchMetadata[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<MetadataStats | null>(null);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'date' | 'cost' | 'tokens'>('date');
+  const [sortBy, setSortBy] = useState<"date" | "cost" | "tokens">("date");
   const [selectedRun, setSelectedRun] = useState<ResearchMetadata | null>(null);
 
   useEffect(() => {
@@ -32,16 +52,18 @@ function Stats() {
   };
 
   const filteredMetadata = selectedTicker
-    ? metadata.filter(m => m.ticker === selectedTicker)
+    ? metadata.filter((m) => m.ticker === selectedTicker)
     : metadata;
 
   const sortedMetadata = [...filteredMetadata].sort((a, b) => {
     switch (sortBy) {
-      case 'date':
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-      case 'cost':
+      case "date":
+        return (
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+      case "cost":
         return b.cost.total_cost - a.cost.total_cost;
-      case 'tokens':
+      case "tokens":
         return b.usage.total_tokens - a.usage.total_tokens;
       default:
         return 0;
@@ -53,7 +75,9 @@ function Stats() {
       <div className="stats">
         <div className="stats-header">
           <h2>Usage Statistics</h2>
-          <p className="description">Track your API usage, costs, and performance metrics</p>
+          <p className="description">
+            Track your API usage, costs, and performance metrics
+          </p>
         </div>
 
         <div className="empty-state">
@@ -65,14 +89,18 @@ function Stats() {
     );
   }
 
-  const uniqueTickers = Array.from(new Set(metadata.map(m => m.ticker))).sort();
+  const uniqueTickers = Array.from(
+    new Set(metadata.map((m) => m.ticker)),
+  ).sort();
 
   return (
     <div className="stats">
       <div className="stats-header">
         <div>
           <h2>Usage Statistics</h2>
-          <p className="description">Track your API usage, costs, and performance metrics</p>
+          <p className="description">
+            Track your API usage, costs, and performance metrics
+          </p>
         </div>
         <div className="header-actions">
           <button onClick={handleExport} className="action-button">
@@ -98,7 +126,9 @@ function Stats() {
           <div className="stat-icon">🎫</div>
           <div className="stat-content">
             <div className="stat-label">Total Tokens</div>
-            <div className="stat-value">{stats.totalTokens.toLocaleString()}</div>
+            <div className="stat-value">
+              {stats.totalTokens.toLocaleString()}
+            </div>
           </div>
         </div>
 
@@ -122,7 +152,9 @@ function Stats() {
           <div className="stat-icon">⏱️</div>
           <div className="stat-content">
             <div className="stat-label">Avg. Duration</div>
-            <div className="stat-value">{formatDuration(stats.averageDuration)}</div>
+            <div className="stat-value">
+              {formatDuration(stats.averageDuration)}
+            </div>
           </div>
         </div>
       </div>
@@ -156,7 +188,9 @@ function Stats() {
                     <span className="ticker-symbol">{ticker}</span>
                     <span className="ticker-runs">{data.count} runs</span>
                   </div>
-                  <div className="ticker-cost">{formatCost(data.totalCost)}</div>
+                  <div className="ticker-cost">
+                    {formatCost(data.totalCost)}
+                  </div>
                 </div>
               ))}
           </div>
@@ -169,13 +203,15 @@ function Stats() {
           <h3>Recent Activity</h3>
           <div className="controls">
             <select
-              value={selectedTicker || ''}
+              value={selectedTicker || ""}
               onChange={(e) => setSelectedTicker(e.target.value || null)}
               className="filter-select"
             >
               <option value="">All Tickers</option>
-              {uniqueTickers.map(ticker => (
-                <option key={ticker} value={ticker}>{ticker}</option>
+              {uniqueTickers.map((ticker) => (
+                <option key={ticker} value={ticker}>
+                  {ticker}
+                </option>
               ))}
             </select>
 
@@ -206,7 +242,7 @@ function Stats() {
             </thead>
             <tbody>
               {sortedMetadata.map((item) => (
-                <tr 
+                <tr
                   key={item.id}
                   onClick={() => setSelectedRun(item)}
                   className="clickable-row"
@@ -219,27 +255,33 @@ function Stats() {
                     </span>
                   </td>
                   <td className="date-cell">
-                    {new Date(item.timestamp).toLocaleString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
+                    {new Date(item.timestamp).toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
                     })}
                   </td>
                   <td>{formatDuration(item.duration)}</td>
                   <td className="tokens-cell">
                     <div className="token-breakdown">
-                      <span className="total">{item.usage.total_tokens.toLocaleString()}</span>
+                      <span className="total">
+                        {item.usage.total_tokens.toLocaleString()}
+                      </span>
                       <span className="detail">
-                        {item.usage.input_tokens.toLocaleString()} in / {item.usage.output_tokens.toLocaleString()} out
+                        {item.usage.input_tokens.toLocaleString()} in /{" "}
+                        {item.usage.output_tokens.toLocaleString()} out
                       </span>
                     </div>
                   </td>
                   <td className="cost-cell">
                     <div className="cost-breakdown">
-                      <span className="total">{formatCost(item.cost.total_cost)}</span>
+                      <span className="total">
+                        {formatCost(item.cost.total_cost)}
+                      </span>
                       <span className="detail">
-                        {formatCost(item.cost.input_cost)} + {formatCost(item.cost.output_cost)}
+                        {formatCost(item.cost.input_cost)} +{" "}
+                        {formatCost(item.cost.output_cost)}
                       </span>
                     </div>
                   </td>
@@ -269,20 +311,27 @@ function Stats() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Run Logs: {selectedRun.ticker}</h2>
-              <button className="close-button" onClick={() => setSelectedRun(null)}>
+              <button
+                className="close-button"
+                onClick={() => setSelectedRun(null)}
+              >
                 ✕
               </button>
             </div>
-            
+
             <div className="modal-body">
               <div className="run-info">
                 <div className="info-item">
                   <span className="label">Type:</span>
-                  <span className={`type-badge ${selectedRun.type}`}>{selectedRun.type}</span>
+                  <span className={`type-badge ${selectedRun.type}`}>
+                    {selectedRun.type}
+                  </span>
                 </div>
                 <div className="info-item">
                   <span className="label">Date:</span>
-                  <span>{new Date(selectedRun.timestamp).toLocaleString()}</span>
+                  <span>
+                    {new Date(selectedRun.timestamp).toLocaleString()}
+                  </span>
                 </div>
                 <div className="info-item">
                   <span className="label">Duration:</span>
@@ -330,4 +379,3 @@ function Stats() {
 }
 
 export default Stats;
-

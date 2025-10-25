@@ -1,6 +1,6 @@
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import type { App } from 'electron';
+import { readFileSync } from "fs";
+import { join } from "path";
+import type { App } from "electron";
 
 export interface PromptTemplate {
   content: string;
@@ -13,32 +13,36 @@ export class PromptLoader {
   constructor(app?: App, projectRoot?: string) {
     // If projectRoot is provided directly, use it
     if (projectRoot) {
-      this.promptsDir = join(projectRoot, 'prompts');
+      this.promptsDir = join(projectRoot, "prompts");
     }
     // Otherwise use app to determine paths
     else if (app) {
       if (app.isPackaged) {
         // Production: prompts are packaged with the app
-        this.promptsDir = join(process.resourcesPath, 'prompts');
+        this.promptsDir = join(process.resourcesPath, "prompts");
       } else {
         // Development: get the app path (project root) and append prompts
-        this.promptsDir = join(app.getAppPath(), 'prompts');
+        this.promptsDir = join(app.getAppPath(), "prompts");
       }
-    } 
+    }
     // Fallback for non-Electron contexts (shouldn't happen but safety first)
     else {
-      throw new Error('PromptLoader requires either app or projectRoot parameter');
+      throw new Error(
+        "PromptLoader requires either app or projectRoot parameter",
+      );
     }
   }
 
   loadPrompt(promptName: string): PromptTemplate {
     const promptPath = join(this.promptsDir, `${promptName}.md`);
     try {
-      const content = readFileSync(promptPath, 'utf-8');
+      const content = readFileSync(promptPath, "utf-8");
       const variables = this.extractVariables(content);
       return { content, variables };
     } catch (error) {
-      throw new Error(`Failed to load prompt ${promptName}: ${(error as Error).message}`);
+      throw new Error(
+        `Failed to load prompt ${promptName}: ${(error as Error).message}`,
+      );
     }
   }
 
@@ -57,7 +61,7 @@ export class PromptLoader {
   fillTemplate(template: string, values: Record<string, string>): string {
     let filled = template;
     for (const [key, value] of Object.entries(values)) {
-      const regex = new RegExp(`\\$\\{${key}\\}`, 'g');
+      const regex = new RegExp(`\\$\\{${key}\\}`, "g");
       filled = filled.replace(regex, value);
     }
     return filled;

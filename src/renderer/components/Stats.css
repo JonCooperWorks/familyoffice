@@ -47,7 +47,9 @@
   display: flex;
   gap: 16px;
   align-items: center;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .stat-card:hover {
@@ -322,7 +324,7 @@
 }
 
 .tokens-cell {
-  font-family: 'Monaco', 'Courier New', monospace;
+  font-family: "Monaco", "Courier New", monospace;
 }
 
 .cost-cell .total {
@@ -516,7 +518,7 @@
   padding: 20px;
   max-height: 400px;
   overflow-y: auto;
-  font-family: 'Monaco', 'Courier New', monospace;
+  font-family: "Monaco", "Courier New", monospace;
   font-size: 13px;
   line-height: 1.6;
 }
@@ -633,4 +635,3 @@
     padding: 16px;
   }
 }
-

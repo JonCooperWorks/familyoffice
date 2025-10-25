@@ -120,7 +120,9 @@
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   width: 100%;
   max-width: none;
   min-width: 0;
@@ -215,7 +217,12 @@
   background: #ff3b30;
   color: white;
   padding: 12px 16px;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   font-size: 18px;
   line-height: 1;
   min-width: 48px;
@@ -303,7 +310,11 @@
   border: 1px solid #d2d2d7;
   border-radius: 8px;
   font-size: 15px;
-  font-family: Inter, system-ui, -apple-system, sans-serif;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    sans-serif;
   transition: border-color 0.2s ease;
   box-sizing: border-box;
 }
@@ -365,7 +376,8 @@
   color: #00ff00;
   padding: 16px;
   border-radius: 8px;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+  font-family:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
   font-size: 13px;
   max-height: 400px;
   overflow-y: auto;
@@ -452,8 +464,12 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .task-actions {
@@ -513,7 +529,9 @@
 .modal-content {
   background: white;
   border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
   max-width: 500px;
   width: 90%;
   max-height: 90vh;
@@ -728,7 +746,7 @@
   background: #f5f5f7;
   padding: 16px;
   border-radius: 8px;
-  font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+  font-family: "SF Mono", "Monaco", "Courier New", monospace;
   font-size: 12px;
   line-height: 1.4;
   overflow-y: auto;
@@ -765,7 +783,7 @@
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 14px;
   }
-  
+
   .reports {
     padding: 16px;
   }
@@ -776,9 +794,8 @@
     grid-template-columns: 1fr;
     gap: 12px;
   }
-  
+
   .reports {
     padding: 12px;
   }
 }
-

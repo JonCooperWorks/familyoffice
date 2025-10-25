@@ -1,6 +1,6 @@
-import { BaseAgent, type AgentConfig, type AgentProgress } from './BaseAgent';
-import type { Thread } from '@openai/codex-sdk';
-import type { App } from 'electron';
+import { BaseAgent, type AgentConfig, type AgentProgress } from "./BaseAgent";
+import type { Thread } from "@openai/codex-sdk";
+import type { App } from "electron";
 
 export class ChatAgent extends BaseAgent {
   private chatThreads: Map<string, Thread> = new Map();
@@ -10,7 +10,7 @@ export class ChatAgent extends BaseAgent {
   }
 
   protected getPromptName(): string {
-    return 'prompt-chat-stock';
+    return "prompt-chat-stock";
   }
 
   async run(
@@ -19,15 +19,18 @@ export class ChatAgent extends BaseAgent {
     reportContent?: string,
     onProgress?: AgentProgress,
     onStream?: (text: string) => void,
-    referenceReports?: Array<{ticker: string, content: string}>
-  ): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
+    referenceReports?: Array<{ ticker: string; content: string }>,
+  ): Promise<{
+    response: string;
+    usage?: { input_tokens: number; output_tokens: number };
+  }> {
     // Check if there's an existing thread for this ticker
     let thread = this.chatThreads.get(ticker);
     let tempDir: string | undefined;
 
     if (!thread) {
       // Create temp directory for this chat session
-      tempDir = await this.createWorkingDirectory(ticker, 'chat');
+      tempDir = await this.createWorkingDirectory(ticker, "chat");
 
       onProgress?.(`💬 Starting new chat thread about ${ticker}...`);
       onProgress?.(`📁 Temp directory: ${tempDir}`);
@@ -48,8 +51,8 @@ export class ChatAgent extends BaseAgent {
         currentDate: this.getCurrentDate(),
         ticker: ticker,
         companyName: ticker,
-        tempDir: tempDir || '',
-        marketData: marketData
+        tempDir: tempDir || "",
+        marketData: marketData,
       };
 
       // Add report context if provided
@@ -67,17 +70,20 @@ ${reportContent}
       }
 
       // Fill in the template and initialize the thread
-      const contextMessage = this.promptLoader.fillTemplate(promptTemplate.content, templateVars);
+      const contextMessage = this.promptLoader.fillTemplate(
+        promptTemplate.content,
+        templateVars,
+      );
       await thread.run(contextMessage);
     }
 
     // Prepare the user's message with reference reports if provided
     let finalMessage = message;
     if (referenceReports && referenceReports.length > 0) {
-      const referenceSection = referenceReports.map(ref => 
-        `## Reference Report: ${ref.ticker}\n\n${ref.content}`
-      ).join('\n\n---\n\n');
-      
+      const referenceSection = referenceReports
+        .map((ref) => `## Reference Report: ${ref.ticker}\n\n${ref.content}`)
+        .join("\n\n---\n\n");
+
       finalMessage = `${message}
 
 ---
@@ -88,8 +94,10 @@ ${referenceSection}
 ---
 
 Please analyze my question in the context of both the main report and the reference reports provided above.`;
-      
-      onProgress?.(`📚 Including ${referenceReports.length} reference report(s): ${referenceReports.map(r => r.ticker).join(', ')}`);
+
+      onProgress?.(
+        `📚 Including ${referenceReports.length} reference report(s): ${referenceReports.map((r) => r.ticker).join(", ")}`,
+      );
     }
 
     // Run the user's message using the unified event processor
@@ -112,4 +120,3 @@ Please analyze my question in the context of both the main report and the refere
     this.chatThreads.clear();
   }
 }
-

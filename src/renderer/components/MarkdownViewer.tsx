@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
-import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
-import './MarkdownViewer.css';
+import { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import "./MarkdownViewer.css";
 
 interface MarkdownViewerProps {
   reportPath: string;
@@ -12,8 +12,13 @@ interface MarkdownViewerProps {
   onReevaluate: (reportPath: string) => void;
 }
 
-function MarkdownViewer({ reportPath, onBack, onChat, onReevaluate }: MarkdownViewerProps) {
-  const [content, setContent] = useState<string>('');
+function MarkdownViewer({
+  reportPath,
+  onBack,
+  onChat,
+  onReevaluate,
+}: MarkdownViewerProps) {
+  const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -30,14 +35,14 @@ function MarkdownViewer({ reportPath, onBack, onChat, onReevaluate }: MarkdownVi
       const data = await window.electronAPI.readReport(reportPath);
       setContent(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report');
+      setError(err instanceof Error ? err.message : "Failed to load report");
     } finally {
       setLoading(false);
     }
   };
 
   const getReportTitle = () => {
-    const filename = reportPath.split('/').pop() || '';
+    const filename = reportPath.split("/").pop() || "";
     // Extract ticker from filename pattern: research-TICKER-DATE.md
     const match = filename.match(/research-([A-Z]+)-/);
     if (match && match[1]) {
@@ -49,14 +54,14 @@ function MarkdownViewer({ reportPath, onBack, onChat, onReevaluate }: MarkdownVi
       return tickerMatch[1];
     }
     // Last fallback
-    return filename.replace('.md', '');
+    return filename.replace(".md", "");
   };
 
   const handleExport = async () => {
     try {
       // Get the rendered HTML from the DOM
-      const renderedHtml = contentRef.current?.innerHTML || '';
-      
+      const renderedHtml = contentRef.current?.innerHTML || "";
+
       // Create HTML content with styling for PDF export
       const htmlContent = `
         <!DOCTYPE html>
@@ -204,15 +209,18 @@ function MarkdownViewer({ reportPath, onBack, onChat, onReevaluate }: MarkdownVi
           </body>
         </html>
       `;
-      
-      const exportedPath = await window.electronAPI.exportReport(reportPath, htmlContent);
+
+      const exportedPath = await window.electronAPI.exportReport(
+        reportPath,
+        htmlContent,
+      );
       if (exportedPath) {
         // Could add a toast notification here if desired
-        console.log('Report exported to:', exportedPath);
+        console.log("Report exported to:", exportedPath);
       }
     } catch (error) {
-      console.error('Error exporting report:', error);
-      alert('Failed to export report. Please try again.');
+      console.error("Error exporting report:", error);
+      alert("Failed to export report. Please try again.");
     }
   };
 
@@ -222,8 +230,8 @@ function MarkdownViewer({ reportPath, onBack, onChat, onReevaluate }: MarkdownVi
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Error copying to clipboard:', error);
-      alert('Failed to copy to clipboard. Please try again.');
+      console.error("Error copying to clipboard:", error);
+      alert("Failed to copy to clipboard. Please try again.");
     }
   };
 
@@ -238,16 +246,22 @@ function MarkdownViewer({ reportPath, onBack, onChat, onReevaluate }: MarkdownVi
             <h2>{getReportTitle()}</h2>
           </div>
           <div className="markdown-actions">
-            <button className="action-button" onClick={() => onReevaluate(reportPath)}>
+            <button
+              className="action-button"
+              onClick={() => onReevaluate(reportPath)}
+            >
               🔄 Reevaluate
             </button>
             <button className="action-button" onClick={handleCopy}>
-              {copied ? '✓ Copied!' : '📋 Copy'}
+              {copied ? "✓ Copied!" : "📋 Copy"}
             </button>
             <button className="action-button" onClick={handleExport}>
               📄 Export PDF
             </button>
-            <button className="action-button primary" onClick={() => onChat(reportPath)}>
+            <button
+              className="action-button primary"
+              onClick={() => onChat(reportPath)}
+            >
               💬 Chat
             </button>
           </div>
@@ -272,24 +286,36 @@ function MarkdownViewer({ reportPath, onBack, onChat, onReevaluate }: MarkdownVi
 
         {!loading && !error && (
           <div className="markdown-content" ref={contentRef}>
-            <ReactMarkdown 
+            <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[
                 rehypeRaw,
-                [rehypeSanitize, {
-                  ...defaultSchema,
-                  attributes: {
-                    ...defaultSchema.attributes,
-                    '*': [...(defaultSchema.attributes?.['*'] || []), 'className', 'style'],
+                [
+                  rehypeSanitize,
+                  {
+                    ...defaultSchema,
+                    attributes: {
+                      ...defaultSchema.attributes,
+                      "*": [
+                        ...(defaultSchema.attributes?.["*"] || []),
+                        "className",
+                        "style",
+                      ],
+                    },
+                    tagNames: [
+                      ...(defaultSchema.tagNames || []),
+                      "table",
+                      "thead",
+                      "tbody",
+                      "tr",
+                      "th",
+                      "td",
+                    ],
                   },
-                  tagNames: [
-                    ...(defaultSchema.tagNames || []),
-                    'table', 'thead', 'tbody', 'tr', 'th', 'td',
-                  ],
-                }]
+                ],
               ]}
               components={{
-                table: ({node, ...props}) => (
+                table: ({ node, ...props }) => (
                   <div className="table-wrapper">
                     <table {...props} />
                   </div>
@@ -306,4 +332,3 @@ function MarkdownViewer({ reportPath, onBack, onChat, onReevaluate }: MarkdownVi
 }
 
 export default MarkdownViewer;
-

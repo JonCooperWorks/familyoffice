@@ -156,7 +156,7 @@
 .result-path {
   font-size: 13px;
   color: #6e6e73;
-  font-family: 'SF Mono', Monaco, monospace;
+  font-family: "SF Mono", Monaco, monospace;
   margin-bottom: 16px;
   word-break: break-all;
 }
@@ -310,4 +310,3 @@
   background: #1d4ed8;
   border-color: #1d4ed8;
 }
-

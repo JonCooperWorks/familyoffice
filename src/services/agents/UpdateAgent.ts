@@ -1,5 +1,5 @@
-import { BaseAgent, type AgentConfig, type AgentProgress } from './BaseAgent';
-import type { App } from 'electron';
+import { BaseAgent, type AgentConfig, type AgentProgress } from "./BaseAgent";
+import type { App } from "electron";
 
 export interface ChatHistoryMessage {
   role: string;
@@ -18,14 +18,22 @@ export class UpdateAgent extends BaseAgent {
   }
 
   protected getPromptName(): string {
-    return 'prompt-update-report';
+    return "prompt-update-report";
   }
 
-  async run(request: UpdateRequest, onProgress?: AgentProgress): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
+  async run(
+    request: UpdateRequest,
+    onProgress?: AgentProgress,
+  ): Promise<{
+    response: string;
+    usage?: { input_tokens: number; output_tokens: number };
+  }> {
     onProgress?.(`📝 Starting report update for ${request.ticker}...`);
 
     if (this.debug) {
-      console.log(`💬 [DEBUG] Chat history provided: ${request.chatHistory ? request.chatHistory.length : 0} messages`);
+      console.log(
+        `💬 [DEBUG] Chat history provided: ${request.chatHistory ? request.chatHistory.length : 0} messages`,
+      );
     }
 
     // Fetch market data
@@ -34,11 +42,11 @@ export class UpdateAgent extends BaseAgent {
     const marketData = this.formatMarketData(quote);
 
     // Create temp directory
-    const tempDir = await this.createWorkingDirectory(request.ticker, 'update');
+    const tempDir = await this.createWorkingDirectory(request.ticker, "update");
     onProgress?.(`📁 Temp directory: ${tempDir}`);
 
     // Build the chat history section if available
-    let chatHistorySection = '';
+    let chatHistorySection = "";
     if (request.chatHistory && request.chatHistory.length > 0) {
       chatHistorySection = `## Chat Conversation History
 
@@ -48,7 +56,7 @@ The following is our complete conversation about ${request.ticker}:
 `;
 
       request.chatHistory.forEach((message) => {
-        const role = message.role === 'user' ? 'User' : 'Assistant';
+        const role = message.role === "user" ? "User" : "Assistant";
         const timestamp = new Date(message.timestamp).toLocaleString();
         chatHistorySection += `**${role}** (${timestamp}):\n${message.content}\n\n---\n`;
       });
@@ -63,16 +71,18 @@ The following is our complete conversation about ${request.ticker}:
       currentDate: this.getCurrentDate(),
       tempDir: tempDir,
       chatHistorySection: chatHistorySection,
-      marketData: marketData
+      marketData: marketData,
     });
 
     if (this.debug) {
-      console.log(`📝 [DEBUG] Sending update prompt to thread (${prompt.length} characters)`);
+      console.log(
+        `📝 [DEBUG] Sending update prompt to thread (${prompt.length} characters)`,
+      );
     }
 
     // Create thread and run
     const thread = this.createThread(tempDir);
-    onProgress?.('🤖 Initializing agent...');
+    onProgress?.("🤖 Initializing agent...");
 
     try {
       const { events } = await thread.runStreamed(prompt);
@@ -82,4 +92,3 @@ The following is our complete conversation about ${request.ticker}:
     }
   }
 }
-

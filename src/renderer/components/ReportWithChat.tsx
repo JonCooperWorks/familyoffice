@@ -1,15 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
-import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
-import type { ChatMessage, Report } from '../../shared/types';
-import './ReportWithChat.css';
+import { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import type { ChatMessage, Report, DockerOutput } from "../../shared/types";
+import "./ReportWithChat.css";
 
 // Claude 3.5 Sonnet pricing
 const PRICING = {
-  INPUT_PER_MILLION: 3.00,
-  OUTPUT_PER_MILLION: 15.00
+  INPUT_PER_MILLION: 3.0,
+  OUTPUT_PER_MILLION: 15.0,
 };
 
 function calculateCost(inputTokens: number, outputTokens: number) {
@@ -18,18 +18,18 @@ function calculateCost(inputTokens: number, outputTokens: number) {
   return {
     input_cost: inputCost,
     output_cost: outputCost,
-    total_cost: inputCost + outputCost
+    total_cost: inputCost + outputCost,
   };
 }
 
 interface BackgroundTask {
   id: string;
-  type: 'research' | 'reevaluate';
+  type: "research" | "reevaluate";
   ticker: string;
   companyName?: string;
   reportPath?: string;
   output: string[];
-  status: 'running' | 'completed' | 'error';
+  status: "running" | "completed" | "error";
   startTime: Date;
 }
 
@@ -42,9 +42,16 @@ interface ReportWithChatProps {
   onDismissTask: (taskId: string) => void;
 }
 
-function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = false, backgroundTasks, onDismissTask }: ReportWithChatProps) {
+function ReportWithChat({
+  reportPath,
+  onBack,
+  onReevaluate,
+  initialChatOpen = false,
+  backgroundTasks,
+  onDismissTask,
+}: ReportWithChatProps) {
   // Report state
-  const [reportContent, setReportContent] = useState<string>('');
+  const [reportContent, setReportContent] = useState<string>("");
   const [reportLoading, setReportLoading] = useState(true);
   const [reportError, setReportError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -52,15 +59,17 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
 
   // Chat state
   const [chatOpen, setChatOpen] = useState(initialChatOpen);
-  const [ticker, setTicker] = useState('');
+  const [ticker, setTicker] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
-  const [processingStatus, setProcessingStatus] = useState<string>('');
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(
+    null,
+  );
+  const [processingStatus, setProcessingStatus] = useState<string>("");
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -83,7 +92,7 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
   }, [chatOpen, reportContent, sessionStarted, reportPath]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   // Save chat history for current ticker whenever it changes
@@ -92,16 +101,16 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
       try {
         const historyKey = `chatHistory_${ticker}`;
         const historyData = {
-          messages: messages.map(msg => ({
+          messages: messages.map((msg) => ({
             ...msg,
-            timestamp: msg.timestamp.toISOString()
+            timestamp: msg.timestamp.toISOString(),
           })),
           reportPath,
-          sessionStarted
+          sessionStarted,
         };
         localStorage.setItem(historyKey, JSON.stringify(historyData));
       } catch (error) {
-        console.error('Failed to save chat history for', ticker, ':', error);
+        console.error("Failed to save chat history for", ticker, ":", error);
       }
     }
   }, [messages, ticker, reportPath, sessionStarted]);
@@ -113,7 +122,9 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
       const data = await window.electronAPI.readReport(reportPath);
       setReportContent(data);
     } catch (err) {
-      setReportError(err instanceof Error ? err.message : 'Failed to load report');
+      setReportError(
+        err instanceof Error ? err.message : "Failed to load report",
+      );
     } finally {
       setReportLoading(false);
     }
@@ -121,44 +132,46 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
 
   const loadHistoryForTicker = (tickerToLoad: string) => {
     setIsLoadingHistory(true);
-    
+
     const historyKey = `chatHistory_${tickerToLoad}`;
     const savedHistory = localStorage.getItem(historyKey);
-    
+
     if (savedHistory) {
       try {
         const parsed = JSON.parse(savedHistory);
         const messagesWithDates = (parsed.messages || []).map((msg: any) => ({
           ...msg,
-          timestamp: new Date(msg.timestamp)
+          timestamp: new Date(msg.timestamp),
         }));
-        
+
         setMessages([]);
         setTimeout(() => {
           setMessages(messagesWithDates);
           setSessionStarted(true);
           setIsLoadingHistory(false);
         }, 50);
-        
+
         return true;
       } catch (error) {
-        console.error('Failed to parse saved history:', error);
+        console.error("Failed to parse saved history:", error);
         localStorage.removeItem(historyKey);
       }
     }
-    
-    setMessages([{
-      role: 'assistant',
-      content: `Chat session started for ${tickerToLoad} with loaded report. Ask me anything about this stock!`,
-      timestamp: new Date()
-    }]);
+
+    setMessages([
+      {
+        role: "assistant",
+        content: `Chat session started for ${tickerToLoad} with loaded report. Ask me anything about this stock!`,
+        timestamp: new Date(),
+      },
+    ]);
     setSessionStarted(true);
     setIsLoadingHistory(false);
     return false;
   };
 
   const getReportTitle = () => {
-    const filename = reportPath.split('/').pop() || '';
+    const filename = reportPath.split("/").pop() || "";
     const match = filename.match(/research-([A-Z]+)-/);
     if (match && match[1]) {
       return match[1];
@@ -167,12 +180,12 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
     if (tickerMatch && tickerMatch[1]) {
       return tickerMatch[1];
     }
-    return filename.replace('.md', '');
+    return filename.replace(".md", "");
   };
 
   const handleExport = async () => {
     try {
-      const renderedHtml = reportContentRef.current?.innerHTML || '';
+      const renderedHtml = reportContentRef.current?.innerHTML || "";
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -217,14 +230,17 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
           </body>
         </html>
       `;
-      
-      const exportedPath = await window.electronAPI.exportReport(reportPath, htmlContent);
+
+      const exportedPath = await window.electronAPI.exportReport(
+        reportPath,
+        htmlContent,
+      );
       if (exportedPath) {
-        console.log('Report exported to:', exportedPath);
+        console.log("Report exported to:", exportedPath);
       }
     } catch (error) {
-      console.error('Error exporting report:', error);
-      alert('Failed to export report. Please try again.');
+      console.error("Error exporting report:", error);
+      alert("Failed to export report. Please try again.");
     }
   };
 
@@ -234,178 +250,225 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Error copying to clipboard:', error);
-      alert('Failed to copy to clipboard. Please try again.');
+      console.error("Error copying to clipboard:", error);
+      alert("Failed to copy to clipboard. Please try again.");
     }
   };
 
-  const handleCopyMessage = async (messageContent: string, messageIndex: number) => {
+  const handleCopyMessage = async (
+    messageContent: string,
+    messageIndex: number,
+  ) => {
     try {
       await navigator.clipboard.writeText(messageContent);
       setCopiedMessageIndex(messageIndex);
       setTimeout(() => setCopiedMessageIndex(null), 2000);
     } catch (error) {
-      console.error('Error copying to clipboard:', error);
-      alert('Failed to copy to clipboard. Please try again.');
+      console.error("Error copying to clipboard:", error);
+      alert("Failed to copy to clipboard. Please try again.");
     }
   };
 
   const handleRetryMessage = async (messageIndex: number) => {
     if (isLoading || messageIndex === 0) return;
-    
+
     // Find the user message that led to this assistant response
     const userMessageIndex = messageIndex - 1;
     const userMessage = messages[userMessageIndex];
-    
-    if (!userMessage || userMessage.role !== 'user') return;
+
+    if (!userMessage || userMessage.role !== "user") return;
 
     // Remove messages from the retry point onwards
     const newMessages = messages.slice(0, messageIndex);
     setMessages(newMessages);
-    
+
     // Resend the user message
     await sendMessage(userMessage.content);
   };
 
   const sendMessage = async (messageContent: string) => {
     setIsLoading(true);
-    setProcessingStatus('Thinking...');
+    setProcessingStatus("Thinking...");
 
     // Add a placeholder assistant message that will be updated with streaming content
     const assistantMessageId = Date.now();
     const initialAssistantMessage: ChatMessage = {
-      role: 'assistant',
-      content: '',
-      timestamp: new Date()
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, { ...initialAssistantMessage, id: assistantMessageId }]);
+    setMessages((prev) => [
+      ...prev,
+      { ...initialAssistantMessage, id: assistantMessageId },
+    ]);
 
     // Set up streaming listener
-    const cleanupStream = window.electronAPI.onChatStream((streamedText) => {
-      setIsStreaming(true);
-      setMessages(prev => prev.map(msg => 
-        (msg as any).id === assistantMessageId 
-          ? { ...msg, content: streamedText }
-          : msg
-      ));
-    });
+    const cleanupStream = window.electronAPI.onChatStream(
+      (streamedText: string) => {
+        setIsStreaming(true);
+        setMessages((prev) =>
+          prev.map((msg) =>
+            (msg as any).id === assistantMessageId
+              ? { ...msg, content: streamedText }
+              : msg,
+          ),
+        );
+      },
+    );
 
     // Set up progress listener for status updates
-    const cleanupProgress = window.electronAPI.onDockerOutput((output) => {
-      if (output.data.includes('🔎 Searching:')) {
-        setProcessingStatus(output.data.trim());
-      } else if (output.data.includes('Search completed')) {
-        setProcessingStatus('Analyzing results...');
-      }
-    });
+    const cleanupProgress = window.electronAPI.onDockerOutput(
+      (output: DockerOutput) => {
+        if (output.data.includes("🔎 Searching:")) {
+          setProcessingStatus(output.data.trim());
+        } else if (output.data.includes("Search completed")) {
+          setProcessingStatus("Analyzing results...");
+        }
+      },
+    );
 
     try {
       // Detect cashtags in the message (e.g., $AAPL, $TSLA)
       const cashtagRegex = /\$([A-Z]{1,5})/g;
-      const cashtags = [...messageContent.matchAll(cashtagRegex)].map(match => match[1]);
-      
+      const cashtags = [...messageContent.matchAll(cashtagRegex)].map(
+        (match) => match[1],
+      );
+
       // Load reference reports for detected cashtags
       const referenceReports: { ticker: string; content: string }[] = [];
       if (cashtags.length > 0) {
-        console.log(`📎 Detected cashtags: ${cashtags.join(', ')}`);
-        setProcessingStatus('Loading referenced reports...');
-        
+        console.log(`📎 Detected cashtags: ${cashtags.join(", ")}`);
+        setProcessingStatus("Loading referenced reports...");
+
         // Get all reports
-        console.log('📚 Fetching all reports...');
+        console.log("📚 Fetching all reports...");
         const allReports = await window.electronAPI.getReports();
         console.log(`📚 Found ${allReports.length} total reports`);
-        
+
         // For each cashtag, find the most recent report
         for (const cashtagTicker of cashtags) {
           // Skip if it's the same as the current ticker
           if (cashtagTicker === ticker.toUpperCase()) {
-            console.log(`⏭️  Skipping ${cashtagTicker} (same as current ticker)`);
+            console.log(
+              `⏭️  Skipping ${cashtagTicker} (same as current ticker)`,
+            );
             continue;
           }
-          
+
           // Find the most recent report for this ticker
-          const tickerReports = allReports.filter(r => r.ticker === cashtagTicker);
+          const tickerReports = allReports.filter(
+            (r: Report) => r.ticker === cashtagTicker,
+          );
           if (tickerReports.length > 0) {
             // Reports are already sorted by date (most recent first)
             const latestReport = tickerReports[0];
-            console.log(`📄 Loading report for ${cashtagTicker}: ${latestReport.path}`);
+            console.log(
+              `📄 Loading report for ${cashtagTicker}: ${latestReport.path}`,
+            );
             try {
-              const content = await window.electronAPI.readReport(latestReport.path);
+              const content = await window.electronAPI.readReport(
+                latestReport.path,
+              );
               referenceReports.push({ ticker: cashtagTicker, content });
-              console.log(`✅ Loaded report for ${cashtagTicker} (${content.length} chars)`);
+              console.log(
+                `✅ Loaded report for ${cashtagTicker} (${content.length} chars)`,
+              );
             } catch (error) {
-              console.error(`❌ Failed to load report for ${cashtagTicker}:`, error);
+              console.error(
+                `❌ Failed to load report for ${cashtagTicker}:`,
+                error,
+              );
             }
           } else {
             console.log(`⚠️  No report found for ${cashtagTicker}`);
           }
         }
-        
+
         // Update status after loading reports
         if (referenceReports.length > 0) {
-          console.log(`✅ Loaded ${referenceReports.length} reference report(s)`);
-          setProcessingStatus(`Loaded ${referenceReports.length} reference report(s). Thinking...`);
+          console.log(
+            `✅ Loaded ${referenceReports.length} reference report(s)`,
+          );
+          setProcessingStatus(
+            `Loaded ${referenceReports.length} reference report(s). Thinking...`,
+          );
         }
       }
 
-      setProcessingStatus('Thinking...');
-      console.log('🤖 Calling runChat with', referenceReports.length, 'reference reports');
+      setProcessingStatus("Thinking...");
+      console.log(
+        "🤖 Calling runChat with",
+        referenceReports.length,
+        "reference reports",
+      );
       const result = await window.electronAPI.runChat(
         ticker.toUpperCase(),
         messageContent,
         reportPath || undefined,
-        referenceReports.length > 0 ? referenceReports : undefined
+        referenceReports.length > 0 ? referenceReports : undefined,
       );
 
       // Log and store token usage
       if (result.usage) {
         const { input_tokens, output_tokens } = result.usage;
         const totalTokens = input_tokens + output_tokens;
-        
-        console.log(`📊 Token Usage: ${input_tokens} in + ${output_tokens} out = ${totalTokens} total`);
-        
+
+        console.log(
+          `📊 Token Usage: ${input_tokens} in + ${output_tokens} out = ${totalTokens} total`,
+        );
+
         // Store token usage in localStorage
         try {
-          const usageKey = 'tokenUsage';
+          const usageKey = "tokenUsage";
           const existingUsage = localStorage.getItem(usageKey);
-          const usageData = existingUsage ? JSON.parse(existingUsage) : { total: 0, sessions: [] };
-          
+          const usageData = existingUsage
+            ? JSON.parse(existingUsage)
+            : { total: 0, sessions: [] };
+
           usageData.total += totalTokens;
           usageData.sessions.push({
             timestamp: new Date().toISOString(),
             ticker,
-            type: 'chat',
+            type: "chat",
             input_tokens,
             output_tokens,
-            total: totalTokens
+            total: totalTokens,
           });
-          
+
           localStorage.setItem(usageKey, JSON.stringify(usageData));
-          console.log(`💾 Total token usage: ${usageData.total.toLocaleString()} tokens`);
+          console.log(
+            `💾 Total token usage: ${usageData.total.toLocaleString()} tokens`,
+          );
         } catch (error) {
-          console.error('Failed to store token usage:', error);
+          console.error("Failed to store token usage:", error);
         }
       }
 
       // Update the assistant message with the final response
-      setMessages(prev => prev.map(msg => 
-        (msg as any).id === assistantMessageId 
-          ? { ...msg, content: result.response }
-          : msg
-      ));
-
+      setMessages((prev) =>
+        prev.map((msg) =>
+          (msg as any).id === assistantMessageId
+            ? { ...msg, content: result.response }
+            : msg,
+        ),
+      );
     } catch (error) {
-      console.error('Chat error:', error);
-      setMessages(prev => prev.map(msg => 
-        (msg as any).id === assistantMessageId 
-          ? { ...msg, content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` }
-          : msg
-      ));
+      console.error("Chat error:", error);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          (msg as any).id === assistantMessageId
+            ? {
+                ...msg,
+                content: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              }
+            : msg,
+        ),
+      );
     } finally {
       setIsLoading(false);
       setIsStreaming(false);
-      setProcessingStatus('');
+      setProcessingStatus("");
       cleanupStream();
       cleanupProgress();
     }
@@ -413,120 +476,145 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
 
   const handleUpdateReport = async () => {
     if (!ticker || !reportPath || isLoading) {
-      console.log(`🚫 [DEBUG] handleUpdateReport blocked: ticker=${ticker}, reportPath=${reportPath}, isLoading=${isLoading}`);
+      console.log(
+        `🚫 [DEBUG] handleUpdateReport blocked: ticker=${ticker}, reportPath=${reportPath}, isLoading=${isLoading}`,
+      );
       return;
     }
 
     console.log(`🔄 [DEBUG] handleUpdateReport starting for ticker: ${ticker}`);
     const startTime = new Date();
     setIsLoading(true);
-    setProcessingStatus('Updating report...');
+    setProcessingStatus("Updating report...");
 
     const logs: string[] = [];
 
     // Set up progress listener
-    const cleanupProgress = window.electronAPI.onDockerOutput((output) => {
-      logs.push(output.data);
-      if (output.data.includes('[DEBUG]') || output.data.includes('🔎') || output.data.includes('💭') || output.data.includes('⚙️')) {
-        setProcessingStatus(output.data.trim());
-        console.log(`🔊 [PROGRESS] ${output.data.trim()}`);
-      }
-    });
+    const cleanupProgress = window.electronAPI.onDockerOutput(
+      (output: DockerOutput) => {
+        logs.push(output.data);
+        if (
+          output.data.includes("[DEBUG]") ||
+          output.data.includes("🔎") ||
+          output.data.includes("💭") ||
+          output.data.includes("⚙️")
+        ) {
+          setProcessingStatus(output.data.trim());
+          console.log(`🔊 [PROGRESS] ${output.data.trim()}`);
+        }
+      },
+    );
 
     try {
       // Get chat history from current messages
-      const chatHistoryForUpdate = messages.map(msg => ({
+      const chatHistoryForUpdate = messages.map((msg) => ({
         role: msg.role,
         content: msg.content,
-        timestamp: msg.timestamp.toISOString()
+        timestamp: msg.timestamp.toISOString(),
       }));
-      
-      console.log(`📞 [DEBUG] Calling window.electronAPI.updateReport('${ticker}') with ${chatHistoryForUpdate.length} messages`);
-      const result = await window.electronAPI.updateReport(ticker, chatHistoryForUpdate);
-      
-      console.log(`✅ [DEBUG] updateReport success, new report path: ${result.path || result}`);
-      
+
+      console.log(
+        `📞 [DEBUG] Calling window.electronAPI.updateReport('${ticker}') with ${chatHistoryForUpdate.length} messages`,
+      );
+      const result = await window.electronAPI.updateReport(
+        ticker,
+        chatHistoryForUpdate,
+      );
+
+      // Handle both string and object return types
+      const reportPath = typeof result === "string" ? result : result.path;
+      const usage = typeof result === "string" ? undefined : result.usage;
+
+      console.log(
+        `✅ [DEBUG] updateReport success, new report path: ${reportPath}`,
+      );
+
       const endTime = new Date();
-      
+
       // Store metadata if usage is available
-      if (result.usage) {
+      if (usage) {
         const metadata = {
           id: `update-${ticker}-${Date.now()}`,
           ticker,
-          type: 'update' as const,
+          type: "update" as const,
           timestamp: new Date().toISOString(),
           startTime: startTime.toISOString(),
           endTime: endTime.toISOString(),
           duration: endTime.getTime() - startTime.getTime(),
           usage: {
-            input_tokens: result.usage.input_tokens,
-            output_tokens: result.usage.output_tokens,
-            total_tokens: result.usage.input_tokens + result.usage.output_tokens
+            input_tokens: usage.input_tokens,
+            output_tokens: usage.output_tokens,
+            total_tokens: usage.input_tokens + usage.output_tokens,
           },
-          cost: calculateCost(result.usage.input_tokens, result.usage.output_tokens),
+          cost: calculateCost(usage.input_tokens, usage.output_tokens),
           logs,
-          reportPath: result.path || result
+          reportPath,
         };
-        
+
         try {
-          const key = 'researchMetadata';
+          const key = "researchMetadata";
           const existingData = localStorage.getItem(key);
           const allMetadata = existingData ? JSON.parse(existingData) : [];
           allMetadata.push(metadata);
           localStorage.setItem(key, JSON.stringify(allMetadata));
-          console.log('💾 Saved update metadata:', metadata);
+          console.log("💾 Saved update metadata:", metadata);
         } catch (error) {
-          console.error('Failed to save update metadata:', error);
+          console.error("Failed to save update metadata:", error);
         }
       }
-      
+
       // Reload the current report content to see if it was updated
       await loadReport();
-      
+
       // Show success status briefly
-      setProcessingStatus('✅ Report updated successfully!');
-      setTimeout(() => setProcessingStatus(''), 3000);
-      
+      setProcessingStatus("✅ Report updated successfully!");
+      setTimeout(() => setProcessingStatus(""), 3000);
     } catch (error) {
       console.error(`❌ [DEBUG] handleUpdateReport error:`, error);
-      
+
       // Show error status
-      setProcessingStatus(`❌ Update failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setTimeout(() => setProcessingStatus(''), 5000);
+      setProcessingStatus(
+        `❌ Update failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+      setTimeout(() => setProcessingStatus(""), 5000);
     } finally {
       setIsLoading(false);
-      setProcessingStatus('');
+      setProcessingStatus("");
       cleanupProgress();
-      console.log(`🏁 [DEBUG] handleUpdateReport finished for ticker: ${ticker}`);
+      console.log(
+        `🏁 [DEBUG] handleUpdateReport finished for ticker: ${ticker}`,
+      );
     }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!input.trim() || isLoading) return;
 
     const userMessage: ChatMessage = {
-      role: 'user',
+      role: "user",
       content: input,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     const currentInput = input;
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+
     await sendMessage(currentInput);
   };
 
   const handleClearChat = () => {
-    setMessages([{
-      role: 'assistant',
-      content: `Chat context cleared for ${ticker} with loaded report. Ask me anything!`,
-      timestamp: new Date()
-    }]);
-    setInput('');
-    
+    setMessages([
+      {
+        role: "assistant",
+        content: `Chat context cleared for ${ticker} with loaded report. Ask me anything!`,
+        timestamp: new Date(),
+      },
+    ]);
+    setInput("");
+
     const historyKey = `chatHistory_${ticker}`;
     localStorage.removeItem(historyKey);
   };
@@ -551,20 +639,23 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
             <h2>{getReportTitle()}</h2>
           </div>
           <div className="header-actions">
-            <button className="action-button" onClick={() => onReevaluate(reportPath)}>
+            <button
+              className="action-button"
+              onClick={() => onReevaluate(reportPath)}
+            >
               🔄 Reevaluate
             </button>
             <button className="action-button" onClick={handleCopy}>
-              {copied ? '✓ Copied!' : '📋 Copy'}
+              {copied ? "✓ Copied!" : "📋 Copy"}
             </button>
             <button className="action-button" onClick={handleExport}>
               📄 Export PDF
             </button>
-            <button 
-              className={`action-button ${chatOpen ? 'active' : 'primary'}`} 
+            <button
+              className={`action-button ${chatOpen ? "active" : "primary"}`}
               onClick={handleToggleChat}
             >
-              💬 Chat {chatOpen ? '(Open)' : ''}
+              💬 Chat {chatOpen ? "(Open)" : ""}
             </button>
           </div>
         </div>
@@ -572,36 +663,98 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
 
       {/* Background Tasks Indicator */}
       {backgroundTasks.length > 0 && (
-        <div className="background-tasks" style={{ margin: '16px 24px', backgroundColor: '#f9fafb', padding: '12px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>Background Tasks</h3>
-          {backgroundTasks.map(task => (
-            <div key={task.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', backgroundColor: 'white', borderRadius: '6px', marginBottom: '8px', border: '1px solid #e5e7eb' }}>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <span style={{ fontWeight: '600', color: '#1f2937' }}>{task.ticker}</span>
-                <span style={{ fontSize: '13px', color: '#6b7280' }}>
-                  {task.type === 'reevaluate' ? 'Reevaluating' : 'Researching'}
+        <div
+          className="background-tasks"
+          style={{
+            margin: "16px 24px",
+            backgroundColor: "#f9fafb",
+            padding: "12px",
+            borderRadius: "8px",
+            border: "1px solid #e5e7eb",
+          }}
+        >
+          <h3
+            style={{
+              fontSize: "14px",
+              fontWeight: "600",
+              marginBottom: "8px",
+              color: "#374151",
+            }}
+          >
+            Background Tasks
+          </h3>
+          {backgroundTasks.map((task) => (
+            <div
+              key={task.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "8px 12px",
+                backgroundColor: "white",
+                borderRadius: "6px",
+                marginBottom: "8px",
+                border: "1px solid #e5e7eb",
+              }}
+            >
+              <div
+                style={{ display: "flex", gap: "12px", alignItems: "center" }}
+              >
+                <span style={{ fontWeight: "600", color: "#1f2937" }}>
+                  {task.ticker}
                 </span>
-                <span style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  {task.status === 'running' ? (
-                    <><span style={{ animation: 'spin 1s linear infinite' }}>⟳</span> Running</>
-                  ) : task.status === 'completed' ? (
-                    <span style={{ color: '#059669' }}>✅ Completed</span>
+                <span style={{ fontSize: "13px", color: "#6b7280" }}>
+                  {task.type === "reevaluate" ? "Reevaluating" : "Researching"}
+                </span>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  {task.status === "running" ? (
+                    <>
+                      <span style={{ animation: "spin 1s linear infinite" }}>
+                        ⟳
+                      </span>{" "}
+                      Running
+                    </>
+                  ) : task.status === "completed" ? (
+                    <span style={{ color: "#059669" }}>✅ Completed</span>
                   ) : (
-                    <span style={{ color: '#dc2626' }}>❌ Error</span>
+                    <span style={{ color: "#dc2626" }}>❌ Error</span>
                   )}
                 </span>
               </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
                   onClick={() => handleViewProgress(task.id)}
-                  style={{ padding: '4px 12px', fontSize: '12px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                  style={{
+                    padding: "4px 12px",
+                    fontSize: "12px",
+                    backgroundColor: "#3b82f6",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                  }}
                 >
                   View Progress
                 </button>
-                {task.status !== 'running' && (
-                  <button 
+                {task.status !== "running" && (
+                  <button
                     onClick={() => onDismissTask(task.id)}
-                    style={{ padding: '4px 8px', fontSize: '12px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    style={{
+                      padding: "4px 8px",
+                      fontSize: "12px",
+                      backgroundColor: "#ef4444",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                    }}
                   >
                     ✕
                   </button>
@@ -613,7 +766,9 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
       )}
 
       <div className="report-with-chat-content">
-        <div className={`report-section ${chatOpen ? 'with-chat' : 'full-width'}`}>
+        <div
+          className={`report-section ${chatOpen ? "with-chat" : "full-width"}`}
+        >
           {reportLoading && (
             <div className="report-loading">
               <div className="loading-spinner"></div>
@@ -631,24 +786,36 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
 
           {!reportLoading && !reportError && (
             <div className="report-content" ref={reportContentRef}>
-              <ReactMarkdown 
+              <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[
                   rehypeRaw,
-                  [rehypeSanitize, {
-                    ...defaultSchema,
-                    attributes: {
-                      ...defaultSchema.attributes,
-                      '*': [...(defaultSchema.attributes?.['*'] || []), 'className', 'style'],
+                  [
+                    rehypeSanitize,
+                    {
+                      ...defaultSchema,
+                      attributes: {
+                        ...defaultSchema.attributes,
+                        "*": [
+                          ...(defaultSchema.attributes?.["*"] || []),
+                          "className",
+                          "style",
+                        ],
+                      },
+                      tagNames: [
+                        ...(defaultSchema.tagNames || []),
+                        "table",
+                        "thead",
+                        "tbody",
+                        "tr",
+                        "th",
+                        "td",
+                      ],
                     },
-                    tagNames: [
-                      ...(defaultSchema.tagNames || []),
-                      'table', 'thead', 'tbody', 'tr', 'th', 'td',
-                    ],
-                  }]
+                  ],
                 ]}
                 components={{
-                  table: ({node, ...props}) => (
+                  table: ({ node, ...props }) => (
                     <div className="table-wrapper">
                       <table {...props} />
                     </div>
@@ -669,13 +836,20 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
                 <span className="report-indicator">📄 Report loaded</span>
               </div>
               <div className="chat-controls">
-                <button onClick={handleUpdateReport} className="update-report-button" disabled={isLoading}>
+                <button
+                  onClick={handleUpdateReport}
+                  className="update-report-button"
+                  disabled={isLoading}
+                >
                   📝 Update Report
                 </button>
                 <button onClick={handleClearChat} className="clear-button">
                   🗑️ Clear
                 </button>
-                <button onClick={() => setChatOpen(false)} className="close-button">
+                <button
+                  onClick={() => setChatOpen(false)}
+                  className="close-button"
+                >
                   ✕
                 </button>
               </div>
@@ -688,7 +862,8 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
                     <span className="message-role">System</span>
                   </div>
                   <div className="message-content">
-                    <span className="typing-indicator">●●●</span> Loading chat history...
+                    <span className="typing-indicator">●●●</span> Loading chat
+                    history...
                   </div>
                 </div>
               )}
@@ -696,21 +871,21 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
                 <div key={idx} className={`message ${msg.role}`}>
                   <div className="message-header">
                     <span className="message-role">
-                      {msg.role === 'user' ? 'You' : 'Assistant'}
+                      {msg.role === "user" ? "You" : "Assistant"}
                     </span>
                     <span className="message-time">
                       {msg.timestamp.toLocaleTimeString()}
                     </span>
                     <div className="message-actions">
-                      <button 
+                      <button
                         className="message-action-btn copy-btn"
                         onClick={() => handleCopyMessage(msg.content, idx)}
                         title="Copy message"
                       >
-                        {copiedMessageIndex === idx ? '✓' : '📋'}
+                        {copiedMessageIndex === idx ? "✓" : "📋"}
                       </button>
-                      {msg.role === 'assistant' && idx > 0 && (
-                        <button 
+                      {msg.role === "assistant" && idx > 0 && (
+                        <button
                           className="message-action-btn retry-btn"
                           onClick={() => handleRetryMessage(idx)}
                           disabled={isLoading}
@@ -726,21 +901,35 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[
                         rehypeRaw,
-                        [rehypeSanitize, {
-                          ...defaultSchema,
-                          tagNames: [...(defaultSchema.tagNames || []), 'sup', 'sub'],
-                          attributes: {
-                            ...defaultSchema.attributes,
-                            '*': [...(defaultSchema.attributes?.['*'] || []), 'className'],
-                          }
-                        }]
+                        [
+                          rehypeSanitize,
+                          {
+                            ...defaultSchema,
+                            tagNames: [
+                              ...(defaultSchema.tagNames || []),
+                              "sup",
+                              "sub",
+                            ],
+                            attributes: {
+                              ...defaultSchema.attributes,
+                              "*": [
+                                ...(defaultSchema.attributes?.["*"] || []),
+                                "className",
+                              ],
+                            },
+                          },
+                        ],
                       ]}
                     >
                       {msg.content}
                     </ReactMarkdown>
-                    {msg.role === 'assistant' && isStreaming && (msg as any).id && (
-                      <span className="streaming-cursor animate-pulse">▋</span>
-                    )}
+                    {msg.role === "assistant" &&
+                      isStreaming &&
+                      (msg as any).id && (
+                        <span className="streaming-cursor animate-pulse">
+                          ▋
+                        </span>
+                      )}
                   </div>
                 </div>
               ))}
@@ -751,9 +940,11 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
                   </div>
                   <div className="message-content">
                     <div className="thinking-status">
-                      <span className="typing-indicator animate-pulse">●●●</span>
+                      <span className="typing-indicator animate-pulse">
+                        ●●●
+                      </span>
                       <span className="status-text">
-                        {processingStatus || 'Thinking...'}
+                        {processingStatus || "Thinking..."}
                       </span>
                     </div>
                   </div>
@@ -785,44 +976,54 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
 
       {/* Progress Modal */}
       {showProgressModal && selectedTaskId && (
-        <div className="modal-overlay" onClick={() => setShowProgressModal(false)}>
-          <div className="progress-modal" onClick={e => e.stopPropagation()}>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowProgressModal(false)}
+        >
+          <div className="progress-modal" onClick={(e) => e.stopPropagation()}>
             {(() => {
-              const task = backgroundTasks.find(t => t.id === selectedTaskId);
+              const task = backgroundTasks.find((t) => t.id === selectedTaskId);
               if (!task) return null;
-              
+
               return (
                 <>
                   <div className="progress-header">
-                    <h2>{task.ticker} - {task.type === 'reevaluate' ? 'Reevaluation' : 'Research'}</h2>
-                    <button 
+                    <h2>
+                      {task.ticker} -{" "}
+                      {task.type === "reevaluate" ? "Reevaluation" : "Research"}
+                    </h2>
+                    <button
                       onClick={() => setShowProgressModal(false)}
                       className="close-modal-button"
                     >
                       ✕
                     </button>
                   </div>
-                  
+
                   <div className="progress-info">
                     <div className="progress-status">
                       <span className={`status-indicator ${task.status}`}>
-                        {task.status === 'running' ? (
-                          <><span className="spinner">⟳</span> Running</>
-                        ) : task.status === 'completed' ? (
-                          '✅ Completed'
+                        {task.status === "running" ? (
+                          <>
+                            <span className="spinner">⟳</span> Running
+                          </>
+                        ) : task.status === "completed" ? (
+                          "✅ Completed"
                         ) : (
-                          '❌ Error'
+                          "❌ Error"
                         )}
                       </span>
                       <span className="start-time">
                         Started: {task.startTime.toLocaleTimeString()}
                       </span>
                     </div>
-                    
+
                     {task.companyName && (
-                      <p className="company-name">Company: {task.companyName}</p>
+                      <p className="company-name">
+                        Company: {task.companyName}
+                      </p>
                     )}
-                    
+
                     {task.reportPath && (
                       <p className="report-path">Report: {task.reportPath}</p>
                     )}
@@ -830,7 +1031,7 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
 
                   <div className="progress-output">
                     <h3>Output</h3>
-                    <pre className="output">{task.output.join('')}</pre>
+                    <pre className="output">{task.output.join("")}</pre>
                   </div>
                 </>
               );
