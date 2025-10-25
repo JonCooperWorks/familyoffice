@@ -18,6 +18,11 @@ export class ResearchAgent extends BaseAgent {
   async run(request: ResearchRequest, onProgress?: AgentProgress): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     onProgress?.(`🔍 Starting research on ${request.companyName} (${request.ticker})...`);
 
+    // Fetch Yahoo Finance data
+    onProgress?.(`📊 Fetching market data from Yahoo Finance...`);
+    const yahooQuote = await this.getYahooFinanceData(request.ticker);
+    const marketData = this.formatYahooFinanceData(yahooQuote);
+
     // Create temp directory
     const tempDir = await this.createWorkingDirectory(request.ticker, 'research');
     onProgress?.(`📁 Temp directory: ${tempDir}`);
@@ -29,6 +34,7 @@ export class ResearchAgent extends BaseAgent {
       ticker: request.ticker,
       currentDate: this.getCurrentDate(),
       tempDir: tempDir,
+      marketData: marketData,
     });
 
     // Create thread and run

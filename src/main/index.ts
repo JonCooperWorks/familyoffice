@@ -126,12 +126,15 @@ ipcMain.handle('check-dependencies', async () => {
 
 
 ipcMain.handle('run-research', async (_event, request: ResearchRequest) => {
+  const startTime = Date.now();
+  const timestamp = new Date().toISOString();
+  
   try {
     agentManager.setOutputHandler((type, data) => {
       mainWindow?.webContents.send('docker-output', { type, data });
     });
     
-    let result: string;
+    let result: { path: string; usage?: { input_tokens: number; output_tokens: number } };
     
     if (request.reportPath) {
       // This is a reevaluation
@@ -139,6 +142,66 @@ ipcMain.handle('run-research', async (_event, request: ResearchRequest) => {
     } else {
       // This is new research
       result = await agentManager.runResearch(request);
+    }
+    
+    // Calculate cost and duration
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    
+    if (result.usage) {
+      // Claude 3.5 Sonnet pricing
+      const INPUT_COST_PER_MILLION = 3.00;
+      const OUTPUT_COST_PER_MILLION = 15.00;
+      
+      const input_cost = (result.usage.input_tokens / 1_000_000) * INPUT_COST_PER_MILLION;
+      const output_cost = (result.usage.output_tokens / 1_000_000) * OUTPUT_COST_PER_MILLION;
+      const total_cost = input_cost + output_cost;
+      
+      // Save metadata
+      const metadata = {
+        id: `${request.ticker}-${timestamp}`,
+        ticker: request.ticker,
+        type: request.reportPath ? 'reevaluate' : 'research',
+        timestamp,
+        startTime: new Date(startTime).toISOString(),
+        endTime: new Date(endTime).toISOString(),
+        duration,
+        usage: {
+          input_tokens: result.usage.input_tokens,
+          output_tokens: result.usage.output_tokens,
+          total_tokens: result.usage.input_tokens + result.usage.output_tokens
+        },
+        cost: {
+          input_cost,
+          output_cost,
+          total_cost
+        },
+        logs: [],
+        reportPath: result.path
+      };
+      
+      // Save to metadata storage
+      try {
+        const metadataDir = join(app.getPath('userData'), 'metadata');
+        const { mkdir, readFile: fsReadFile, writeFile: fsWriteFile } = await import('fs/promises');
+        
+        await mkdir(metadataDir, { recursive: true });
+        const metadataPath = join(metadataDir, 'research-metadata.json');
+        
+        let existingData: any[] = [];
+        try {
+          const data = await fsReadFile(metadataPath, 'utf-8');
+          existingData = JSON.parse(data);
+        } catch {
+          // File doesn't exist, start with empty array
+        }
+        
+        existingData.push(metadata);
+        await fsWriteFile(metadataPath, JSON.stringify(existingData, null, 2));
+        console.log('✅ Metadata saved successfully');
+      } catch (error) {
+        console.error('❌ Failed to save metadata:', error);
+      }
     }
     
     mainWindow?.webContents.send('process-complete', result);
@@ -177,6 +240,9 @@ ipcMain.handle('run-chat', async (_event, ticker: string, message: string, repor
 });
 
 ipcMain.handle('update-report', async (_event, ticker: string, chatHistory?: any[]) => {
+  const startTime = Date.now();
+  const timestamp = new Date().toISOString();
+  
   console.log(`\n🔄 [IPC DEBUG] Received update-report request for ticker: ${ticker}`);
   console.log(`📚 [IPC DEBUG] Chat history provided: ${chatHistory ? `${chatHistory.length} messages` : 'none'}`);
   
@@ -190,7 +256,68 @@ ipcMain.handle('update-report', async (_event, ticker: string, chatHistory?: any
     console.log(`📞 [IPC DEBUG] Calling agentManager.updateReport('${ticker}', chatHistory)`);
     const result = await agentManager.updateReport(ticker, chatHistory);
     
-    console.log(`✅ [IPC DEBUG] updateReport successful, result: ${result}`);
+    console.log(`✅ [IPC DEBUG] updateReport successful, result path: ${result.path}`);
+    
+    // Calculate cost and duration
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    
+    if (result.usage) {
+      // Claude 3.5 Sonnet pricing
+      const INPUT_COST_PER_MILLION = 3.00;
+      const OUTPUT_COST_PER_MILLION = 15.00;
+      
+      const input_cost = (result.usage.input_tokens / 1_000_000) * INPUT_COST_PER_MILLION;
+      const output_cost = (result.usage.output_tokens / 1_000_000) * OUTPUT_COST_PER_MILLION;
+      const total_cost = input_cost + output_cost;
+      
+      // Save metadata
+      const metadata = {
+        id: `${ticker}-${timestamp}`,
+        ticker: ticker,
+        type: 'update',
+        timestamp,
+        startTime: new Date(startTime).toISOString(),
+        endTime: new Date(endTime).toISOString(),
+        duration,
+        usage: {
+          input_tokens: result.usage.input_tokens,
+          output_tokens: result.usage.output_tokens,
+          total_tokens: result.usage.input_tokens + result.usage.output_tokens
+        },
+        cost: {
+          input_cost,
+          output_cost,
+          total_cost
+        },
+        logs: [],
+        reportPath: result.path
+      };
+      
+      // Save to metadata storage
+      try {
+        const metadataDir = join(app.getPath('userData'), 'metadata');
+        const { mkdir, readFile: fsReadFile, writeFile: fsWriteFile } = await import('fs/promises');
+        
+        await mkdir(metadataDir, { recursive: true });
+        const metadataPath = join(metadataDir, 'research-metadata.json');
+        
+        let existingData: any[] = [];
+        try {
+          const data = await fsReadFile(metadataPath, 'utf-8');
+          existingData = JSON.parse(data);
+        } catch {
+          // File doesn't exist, start with empty array
+        }
+        
+        existingData.push(metadata);
+        await fsWriteFile(metadataPath, JSON.stringify(existingData, null, 2));
+        console.log('✅ Metadata saved successfully');
+      } catch (error) {
+        console.error('❌ Failed to save metadata:', error);
+      }
+    }
+    
     console.log(`📡 [IPC DEBUG] Sending process-complete event`);
     mainWindow?.webContents.send('process-complete', result);
     
@@ -354,6 +481,70 @@ ipcMain.handle('export-report', async (_event, reportPath: string, htmlContent: 
   } catch (error) {
     console.error('Error exporting report:', error);
     throw error;
+  }
+});
+
+// Metadata storage handler
+ipcMain.handle('save-metadata', async (_event, metadata: any) => {
+  try {
+    // Store metadata in userData directory
+    const metadataDir = join(app.getPath('userData'), 'metadata');
+    const fs = await import('fs/promises');
+    
+    // Ensure directory exists
+    await fs.mkdir(metadataDir, { recursive: true });
+    
+    const metadataPath = join(metadataDir, 'research-metadata.json');
+    
+    // Read existing metadata
+    let existingData: any[] = [];
+    try {
+      const data = await fs.readFile(metadataPath, 'utf-8');
+      existingData = JSON.parse(data);
+    } catch {
+      // File doesn't exist or is invalid, start with empty array
+    }
+    
+    // Add new metadata
+    existingData.push(metadata);
+    
+    // Write back to file
+    await fs.writeFile(metadataPath, JSON.stringify(existingData, null, 2));
+    
+    return true;
+  } catch (error) {
+    console.error('Error saving metadata:', error);
+    return false;
+  }
+});
+
+// Get all metadata
+ipcMain.handle('get-metadata', async () => {
+  try {
+    const metadataDir = join(app.getPath('userData'), 'metadata');
+    const metadataPath = join(metadataDir, 'research-metadata.json');
+    const fs = await import('fs/promises');
+    
+    const data = await fs.readFile(metadataPath, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    // File doesn't exist, return empty array
+    return [];
+  }
+});
+
+// Clear all metadata
+ipcMain.handle('clear-metadata', async () => {
+  try {
+    const metadataDir = join(app.getPath('userData'), 'metadata');
+    const metadataPath = join(metadataDir, 'research-metadata.json');
+    const fs = await import('fs/promises');
+    
+    await fs.writeFile(metadataPath, JSON.stringify([], null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error clearing metadata:', error);
+    return false;
   }
 });
 

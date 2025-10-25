@@ -23,7 +23,7 @@ export class AgentManager {
     }
   }
 
-  async runResearch(request: ResearchRequest): Promise<string> {
+  async runResearch(request: ResearchRequest): Promise<{ path: string; usage?: { input_tokens: number; output_tokens: number } }> {
     try {
       const result = await this.agent.research(
         {
@@ -73,7 +73,10 @@ export class AgentManager {
       
       this.logOutput(`✅ ${reportType} saved to: ${outputFile}`);
       
-      return fullPath;
+      return {
+        path: fullPath,
+        usage: result.usage
+      };
     } catch (error) {
       const errorMsg = `Research failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
       this.logOutput(errorMsg);
@@ -81,7 +84,7 @@ export class AgentManager {
     }
   }
 
-  async runReevaluate(request: ResearchRequest, existingReportPath: string): Promise<string> {
+  async runReevaluate(request: ResearchRequest, existingReportPath: string): Promise<{ path: string; usage?: { input_tokens: number; output_tokens: number } }> {
     try {
       // Read the existing report
       const fs = await import('fs/promises');
@@ -90,9 +93,9 @@ export class AgentManager {
       const result = await this.agent.reevaluate(
         {
           companyName: request.companyName || request.ticker,
-          ticker: request.ticker
+          ticker: request.ticker,
+          existingReport: reportContent
         },
-        reportContent,
         (message) => this.logOutput(message)
       );
 
@@ -137,7 +140,10 @@ export class AgentManager {
       
       this.logOutput(`✅ Reevaluation report saved to: ${outputFile}`);
       
-      return fullPath;
+      return {
+        path: fullPath,
+        usage: result.usage
+      };
     } catch (error) {
       const errorMsg = `Reevaluation failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
       this.logOutput(errorMsg);
@@ -176,7 +182,7 @@ export class AgentManager {
     }
   }
 
-  async updateReport(ticker: string, chatHistory?: any[]): Promise<string> {
+  async updateReport(ticker: string, chatHistory?: any[]): Promise<{ path: string; usage?: { input_tokens: number; output_tokens: number } }> {
     console.log(`\n🔄 [AGENT_MANAGER DEBUG] Starting updateReport for ticker: ${ticker}`);
     console.log(`📚 [AGENT_MANAGER DEBUG] Chat history: ${chatHistory ? `${chatHistory.length} messages` : 'none provided'}`);
     this.logOutput(`🔄 [AGENT_MANAGER DEBUG] Starting updateReport for ticker: ${ticker}`);
@@ -244,7 +250,10 @@ export class AgentManager {
       console.log(`✅ [AGENT_MANAGER DEBUG] Successfully wrote file: ${fullPath}`);
       this.logOutput(`✅ Updated report saved to: ${outputFile}`);
       
-      return fullPath;
+      return {
+        path: fullPath,
+        usage: result.usage
+      };
     } catch (error) {
       const errorMsg = `Report update failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
       console.error(`❌ [AGENT_MANAGER DEBUG] ${errorMsg}`);

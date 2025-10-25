@@ -3,6 +3,7 @@ import { PromptLoader } from '../../utils/promptLoader';
 import type { App } from 'electron';
 import { join } from 'path';
 import { mkdir } from 'fs/promises';
+import { YahooFinanceService, type YahooFinanceQuote } from '../yahooFinanceService';
 
 export interface AgentConfig {
   model?: string;
@@ -62,6 +63,28 @@ export abstract class BaseAgent {
       month: 'long',
       day: 'numeric'
     });
+  }
+
+  /**
+   * Fetch Yahoo Finance stock data
+   */
+  protected async getYahooFinanceData(ticker: string): Promise<YahooFinanceQuote | null> {
+    try {
+      return await YahooFinanceService.getQuote(ticker);
+    } catch (error) {
+      console.error(`Failed to fetch Yahoo Finance data for ${ticker}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Format Yahoo Finance data as markdown for inclusion in prompts
+   */
+  protected formatYahooFinanceData(quote: YahooFinanceQuote | null): string {
+    if (!quote) {
+      return '**Market Data**: Not available at this time.';
+    }
+    return YahooFinanceService.formatQuoteMarkdown(quote);
   }
 
   /**

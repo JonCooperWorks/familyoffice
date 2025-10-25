@@ -8,6 +8,14 @@ Today's date is ${currentDate}.
 
 **Working Directory:** Your working directory is `${tempDir}`. Save any intermediate files (HTML, XML, downloaded documents, etc.) here. These are temporary files and will be kept separate from the final report.
 
+---
+
+## Current Market Data (Yahoo Finance)
+
+${marketData}
+
+---
+
 I have an existing research report about ${companyName} (ticker: ${ticker}) that needs to be critically reevaluated with current information.
 
 ## Original Report to Reevaluate:

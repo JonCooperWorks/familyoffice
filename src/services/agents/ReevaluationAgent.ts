@@ -19,6 +19,11 @@ export class ReevaluationAgent extends BaseAgent {
   async run(request: ReevaluationRequest, onProgress?: AgentProgress): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     onProgress?.(`🔄 Starting reevaluation of ${request.companyName} (${request.ticker})...`);
 
+    // Fetch Yahoo Finance data
+    onProgress?.(`📊 Fetching market data from Yahoo Finance...`);
+    const yahooQuote = await this.getYahooFinanceData(request.ticker);
+    const marketData = this.formatYahooFinanceData(yahooQuote);
+
     // Create temp directory
     const tempDir = await this.createWorkingDirectory(request.ticker, 'reevaluate');
     onProgress?.(`📁 Temp directory: ${tempDir}`);
@@ -36,6 +41,7 @@ export class ReevaluationAgent extends BaseAgent {
       currentDate: this.getCurrentDate(),
       reportContent: request.existingReport,
       tempDir: tempDir,
+      marketData: marketData,
     });
 
     if (this.debug) {

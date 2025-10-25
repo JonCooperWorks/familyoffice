@@ -6,6 +6,14 @@ Today's date is ${currentDate}.
 
 **Working Directory:** Your working directory is `${tempDir}`. You can save any intermediate files here if needed.
 
+---
+
+## Current Market Data (Yahoo Finance)
+
+${marketData}
+
+---
+
 ${chatHistorySection}
 
 Based on our conversation above, please generate a comprehensive updated research report about ${ticker}. 

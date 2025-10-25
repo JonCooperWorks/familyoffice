@@ -6,14 +6,43 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import type { ChatMessage, Report } from '../../shared/types';
 import './ReportWithChat.css';
 
+// Claude 3.5 Sonnet pricing
+const PRICING = {
+  INPUT_PER_MILLION: 3.00,
+  OUTPUT_PER_MILLION: 15.00
+};
+
+function calculateCost(inputTokens: number, outputTokens: number) {
+  const inputCost = (inputTokens / 1_000_000) * PRICING.INPUT_PER_MILLION;
+  const outputCost = (outputTokens / 1_000_000) * PRICING.OUTPUT_PER_MILLION;
+  return {
+    input_cost: inputCost,
+    output_cost: outputCost,
+    total_cost: inputCost + outputCost
+  };
+}
+
+interface BackgroundTask {
+  id: string;
+  type: 'research' | 'reevaluate';
+  ticker: string;
+  companyName?: string;
+  reportPath?: string;
+  output: string[];
+  status: 'running' | 'completed' | 'error';
+  startTime: Date;
+}
+
 interface ReportWithChatProps {
   reportPath: string;
   onBack: () => void;
   onReevaluate: (reportPath: string) => void;
   initialChatOpen?: boolean;
+  backgroundTasks: BackgroundTask[];
+  onDismissTask: (taskId: string) => void;
 }
 
-function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = false }: ReportWithChatProps) {
+function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = false, backgroundTasks, onDismissTask }: ReportWithChatProps) {
   // Report state
   const [reportContent, setReportContent] = useState<string>('');
   const [reportLoading, setReportLoading] = useState(true);
@@ -32,6 +61,8 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
   const [processingStatus, setProcessingStatus] = useState<string>('');
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load report content
@@ -387,11 +418,15 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
     }
 
     console.log(`🔄 [DEBUG] handleUpdateReport starting for ticker: ${ticker}`);
+    const startTime = new Date();
     setIsLoading(true);
     setProcessingStatus('Updating report...');
 
+    const logs: string[] = [];
+
     // Set up progress listener
     const cleanupProgress = window.electronAPI.onDockerOutput((output) => {
+      logs.push(output.data);
       if (output.data.includes('[DEBUG]') || output.data.includes('🔎') || output.data.includes('💭') || output.data.includes('⚙️')) {
         setProcessingStatus(output.data.trim());
         console.log(`🔊 [PROGRESS] ${output.data.trim()}`);
@@ -407,9 +442,43 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
       }));
       
       console.log(`📞 [DEBUG] Calling window.electronAPI.updateReport('${ticker}') with ${chatHistoryForUpdate.length} messages`);
-      const updatedReportPath = await window.electronAPI.updateReport(ticker, chatHistoryForUpdate);
+      const result = await window.electronAPI.updateReport(ticker, chatHistoryForUpdate);
       
-      console.log(`✅ [DEBUG] updateReport success, new report path: ${updatedReportPath}`);
+      console.log(`✅ [DEBUG] updateReport success, new report path: ${result.path || result}`);
+      
+      const endTime = new Date();
+      
+      // Store metadata if usage is available
+      if (result.usage) {
+        const metadata = {
+          id: `update-${ticker}-${Date.now()}`,
+          ticker,
+          type: 'update' as const,
+          timestamp: new Date().toISOString(),
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          duration: endTime.getTime() - startTime.getTime(),
+          usage: {
+            input_tokens: result.usage.input_tokens,
+            output_tokens: result.usage.output_tokens,
+            total_tokens: result.usage.input_tokens + result.usage.output_tokens
+          },
+          cost: calculateCost(result.usage.input_tokens, result.usage.output_tokens),
+          logs,
+          reportPath: result.path || result
+        };
+        
+        try {
+          const key = 'researchMetadata';
+          const existingData = localStorage.getItem(key);
+          const allMetadata = existingData ? JSON.parse(existingData) : [];
+          allMetadata.push(metadata);
+          localStorage.setItem(key, JSON.stringify(allMetadata));
+          console.log('💾 Saved update metadata:', metadata);
+        } catch (error) {
+          console.error('Failed to save update metadata:', error);
+        }
+      }
       
       // Reload the current report content to see if it was updated
       await loadReport();
@@ -466,6 +535,11 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
     setChatOpen(!chatOpen);
   };
 
+  const handleViewProgress = (taskId: string) => {
+    setSelectedTaskId(taskId);
+    setShowProgressModal(true);
+  };
+
   return (
     <div className="report-with-chat">
       <div className="report-with-chat-header">
@@ -495,6 +569,48 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
           </div>
         </div>
       </div>
+
+      {/* Background Tasks Indicator */}
+      {backgroundTasks.length > 0 && (
+        <div className="background-tasks" style={{ margin: '16px 24px', backgroundColor: '#f9fafb', padding: '12px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>Background Tasks</h3>
+          {backgroundTasks.map(task => (
+            <div key={task.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', backgroundColor: 'white', borderRadius: '6px', marginBottom: '8px', border: '1px solid #e5e7eb' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <span style={{ fontWeight: '600', color: '#1f2937' }}>{task.ticker}</span>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>
+                  {task.type === 'reevaluate' ? 'Reevaluating' : 'Researching'}
+                </span>
+                <span style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {task.status === 'running' ? (
+                    <><span style={{ animation: 'spin 1s linear infinite' }}>⟳</span> Running</>
+                  ) : task.status === 'completed' ? (
+                    <span style={{ color: '#059669' }}>✅ Completed</span>
+                  ) : (
+                    <span style={{ color: '#dc2626' }}>❌ Error</span>
+                  )}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={() => handleViewProgress(task.id)}
+                  style={{ padding: '4px 12px', fontSize: '12px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  View Progress
+                </button>
+                {task.status !== 'running' && (
+                  <button 
+                    onClick={() => onDismissTask(task.id)}
+                    style={{ padding: '4px 8px', fontSize: '12px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="report-with-chat-content">
         <div className={`report-section ${chatOpen ? 'with-chat' : 'full-width'}`}>
@@ -666,6 +782,62 @@ function ReportWithChat({ reportPath, onBack, onReevaluate, initialChatOpen = fa
           </div>
         )}
       </div>
+
+      {/* Progress Modal */}
+      {showProgressModal && selectedTaskId && (
+        <div className="modal-overlay" onClick={() => setShowProgressModal(false)}>
+          <div className="progress-modal" onClick={e => e.stopPropagation()}>
+            {(() => {
+              const task = backgroundTasks.find(t => t.id === selectedTaskId);
+              if (!task) return null;
+              
+              return (
+                <>
+                  <div className="progress-header">
+                    <h2>{task.ticker} - {task.type === 'reevaluate' ? 'Reevaluation' : 'Research'}</h2>
+                    <button 
+                      onClick={() => setShowProgressModal(false)}
+                      className="close-modal-button"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  
+                  <div className="progress-info">
+                    <div className="progress-status">
+                      <span className={`status-indicator ${task.status}`}>
+                        {task.status === 'running' ? (
+                          <><span className="spinner">⟳</span> Running</>
+                        ) : task.status === 'completed' ? (
+                          '✅ Completed'
+                        ) : (
+                          '❌ Error'
+                        )}
+                      </span>
+                      <span className="start-time">
+                        Started: {task.startTime.toLocaleTimeString()}
+                      </span>
+                    </div>
+                    
+                    {task.companyName && (
+                      <p className="company-name">Company: {task.companyName}</p>
+                    )}
+                    
+                    {task.reportPath && (
+                      <p className="report-path">Report: {task.reportPath}</p>
+                    )}
+                  </div>
+
+                  <div className="progress-output">
+                    <h3>Output</h3>
+                    <pre className="output">{task.output.join('')}</pre>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

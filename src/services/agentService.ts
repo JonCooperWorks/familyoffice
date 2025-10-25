@@ -53,13 +53,10 @@ export class AgentService {
   /**
    * Reevaluate an existing research report
    */
-  async reevaluate(request: ResearchRequest, existingReport: string, onProgress?: (message: string) => void): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
+  async reevaluate(request: ReevaluationRequest, onProgress?: (message: string) => void): Promise<{ response: string; usage?: { input_tokens: number; output_tokens: number } }> {
     const agent = new ReevaluationAgent(this.config, app);
     try {
-      return await agent.run(
-        { ...request, existingReport },
-        onProgress
-      );
+      return await agent.run(request, onProgress);
     } finally {
       agent.cleanup();
     }

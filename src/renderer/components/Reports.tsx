@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Report, ResearchRequest } from '../../shared/types';
+import type { Report } from '../../shared/types';
 import './Reports.css';
 
 interface BackgroundTask {
@@ -16,15 +16,15 @@ interface BackgroundTask {
 interface ReportsProps {
   onOpenReport: (reportPath: string) => void;
   onChat: (reportPath: string) => void;
+  onStartResearch: (mode: 'new' | 'reevaluate', ticker: string, companyName?: string, reportPath?: string) => void;
+  backgroundTasks: BackgroundTask[];
+  onDismissTask: (taskId: string) => void;
 }
 
-function Reports({ onOpenReport, onChat }: ReportsProps) {
+function Reports({ onOpenReport, onChat, onStartResearch, backgroundTasks, onDismissTask }: ReportsProps) {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [ticker, setTicker] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [backgroundTasks, setBackgroundTasks] = useState<BackgroundTask[]>([]);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
@@ -71,111 +71,28 @@ function Reports({ onOpenReport, onChat }: ReportsProps) {
     }
   };
 
-  const handleStartResearch = async (mode: 'new' | 'reevaluate', reportPath?: string, tickerOverride?: string) => {
-    const effectiveTicker = tickerOverride || ticker;
-    
-    if (!effectiveTicker) {
-      alert('Please enter a ticker symbol');
-      return;
+  // Reload reports when background tasks complete
+  useEffect(() => {
+    const hasCompleted = backgroundTasks.some(task => task.status === 'completed');
+    if (hasCompleted) {
+      loadReports();
     }
-
-    // Create background task
-    const taskId = `${effectiveTicker}-${Date.now()}`;
-    const newTask: BackgroundTask = {
-      id: taskId,
-      type: mode === 'reevaluate' ? 'reevaluate' : 'research',
-      ticker: effectiveTicker.toUpperCase(),
-      companyName: companyName || undefined,
-      reportPath,
-      output: [],
-      status: 'running',
-      startTime: new Date()
-    };
-
-    setBackgroundTasks(prev => [...prev, newTask]);
-    
-    // Clear form fields
-    setTicker('');
-    setCompanyName('');
-
-    // Set up event handlers for this specific task
-    const cleanupOutput = window.electronAPI.onDockerOutput((data) => {
-      setBackgroundTasks(prev => prev.map(task => 
-        task.id === taskId 
-          ? { ...task, output: [...task.output, data.data] }
-          : task
-      ));
-    });
-
-    const cleanupComplete = window.electronAPI.onProcessComplete(async (result) => {
-      setBackgroundTasks(prev => prev.map(task => 
-        task.id === taskId 
-          ? { ...task, status: 'completed' as const }
-          : task
-      ));
-      
-      // Refresh the reports list and auto-select the new report
-      await loadReports();
-      
-      // Find and open the newly created report
-      const updatedReports = await window.electronAPI.getReports();
-      const newReport = updatedReports.find(r => r.ticker === newTask.ticker);
-      if (newReport) {
-        onOpenReport(newReport.path);
-      }
-      
-      // Auto-remove completed task after 5 seconds
-      setTimeout(() => {
-        setBackgroundTasks(prev => prev.filter(task => task.id !== taskId));
-      }, 5000);
-    });
-
-    const cleanupError = window.electronAPI.onProcessError((error) => {
-      setBackgroundTasks(prev => prev.map(task => 
-        task.id === taskId 
-          ? { ...task, output: [...task.output, `\n❌ Error: ${error}\n`], status: 'error' as const }
-          : task
-      ));
-    });
-
-    try {
-      const request: ResearchRequest = {
-        ticker: newTask.ticker,
-        companyName: newTask.companyName,
-        reportPath: mode === 'reevaluate' ? reportPath : undefined
-      };
-
-      await window.electronAPI.runResearch(request);
-    } catch (error) {
-      console.error('Research error:', error);
-      setBackgroundTasks(prev => prev.map(task => 
-        task.id === taskId 
-          ? { ...task, status: 'error' as const, output: [...task.output, `\n❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}\n`] }
-          : task
-      ));
-    } finally {
-      cleanupOutput();
-      cleanupComplete();
-      cleanupError();
-    }
-  };
+  }, [backgroundTasks]);
 
   const handleReevaluate = (report: Report) => {
     const match = report.path.match(/research-([A-Z]+)-/);
     if (match) {
       const tickerValue = match[1];
       // Start reevaluation immediately without showing form
-      setTicker(tickerValue);
-      handleStartResearch('reevaluate', report.path, tickerValue);
+      onStartResearch('reevaluate', tickerValue, undefined, report.path);
     }
   };
 
   const handleResearchFromSearch = () => {
     // Start research immediately without showing form
     const tickerValue = searchTerm.toUpperCase();
-    setTicker(tickerValue);
     setSearchTerm(''); // Clear search to show all reports while research runs
-    handleStartResearch('new', undefined, tickerValue);
+    onStartResearch('new', tickerValue);
   };
 
   const filteredReports = reports.filter(report =>
@@ -203,9 +120,6 @@ function Reports({ onOpenReport, onChat }: ReportsProps) {
     setShowProgressModal(true);
   };
 
-  const handleDismissTask = (taskId: string) => {
-    setBackgroundTasks(prev => prev.filter(task => task.id !== taskId));
-  };
 
   return (
     <div className="reports">
@@ -246,7 +160,7 @@ function Reports({ onOpenReport, onChat }: ReportsProps) {
                 </button>
                 {task.status !== 'running' && (
                   <button 
-                    onClick={() => handleDismissTask(task.id)}
+                    onClick={() => onDismissTask(task.id)}
                     className="dismiss-btn"
                   >
                     ✕

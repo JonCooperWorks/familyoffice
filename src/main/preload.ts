@@ -57,7 +57,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event: any, text: string) => callback(text);
     ipcRenderer.on('chat-stream', listener);
     return () => ipcRenderer.removeListener('chat-stream', listener);
-  }
+  },
+  
+  // Metadata operations
+  saveMetadata: (metadata: any): Promise<boolean> =>
+    ipcRenderer.invoke('save-metadata', metadata),
+  
+  getMetadata: (): Promise<any[]> =>
+    ipcRenderer.invoke('get-metadata'),
+  
+  clearMetadata: (): Promise<boolean> =>
+    ipcRenderer.invoke('clear-metadata')
 });
 
 declare global {
@@ -76,6 +86,9 @@ declare global {
       onProcessComplete: (callback: (result: string) => void) => () => void;
       onProcessError: (callback: (error: string) => void) => () => void;
       onChatStream: (callback: (text: string) => void) => () => void;
+      saveMetadata: (metadata: any) => Promise<boolean>;
+      getMetadata: () => Promise<any[]>;
+      clearMetadata: () => Promise<boolean>;
     };
   }
 }

@@ -32,6 +32,11 @@ export class ChatAgent extends BaseAgent {
       onProgress?.(`💬 Starting new chat thread about ${ticker}...`);
       onProgress?.(`📁 Temp directory: ${tempDir}`);
 
+      // Fetch Yahoo Finance data
+      onProgress?.(`📊 Fetching market data from Yahoo Finance...`);
+      const yahooQuote = await this.getYahooFinanceData(ticker);
+      const marketData = this.formatYahooFinanceData(yahooQuote);
+
       thread = this.createThread(tempDir);
       this.chatThreads.set(ticker, thread);
 
@@ -43,7 +48,8 @@ export class ChatAgent extends BaseAgent {
         currentDate: this.getCurrentDate(),
         ticker: ticker,
         companyName: ticker,
-        tempDir: tempDir || ''
+        tempDir: tempDir || '',
+        marketData: marketData
       };
 
       // Add report context if provided

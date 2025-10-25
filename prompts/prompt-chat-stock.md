@@ -21,6 +21,14 @@ You are a knowledgeable financial analyst and investment advisor assistant for F
 - **Company**: ${companyName}
 ${reportContext}
 
+---
+
+## Current Market Data (Yahoo Finance)
+
+${marketData}
+
+---
+
 **Note**: Users can reference other stock reports by using cashtags (e.g., $AAPL, $TSLA) in their messages. When they do, the referenced reports will be included in the conversation for comparison and analysis.
 
 ## Guidelines for Responses:

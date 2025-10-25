@@ -28,6 +28,11 @@ export class UpdateAgent extends BaseAgent {
       console.log(`💬 [DEBUG] Chat history provided: ${request.chatHistory ? request.chatHistory.length : 0} messages`);
     }
 
+    // Fetch Yahoo Finance data
+    onProgress?.(`📊 Fetching market data from Yahoo Finance...`);
+    const yahooQuote = await this.getYahooFinanceData(request.ticker);
+    const marketData = this.formatYahooFinanceData(yahooQuote);
+
     // Create temp directory
     const tempDir = await this.createWorkingDirectory(request.ticker, 'update');
     onProgress?.(`Setting up research environment...`);
@@ -57,7 +62,8 @@ The following is our complete conversation about ${request.ticker}:
       ticker: request.ticker,
       currentDate: this.getCurrentDate(),
       tempDir: tempDir,
-      chatHistorySection: chatHistorySection
+      chatHistorySection: chatHistorySection,
+      marketData: marketData
     });
 
     if (this.debug) {
