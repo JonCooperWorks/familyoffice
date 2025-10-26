@@ -4,7 +4,7 @@ import "./Reports.css";
 
 interface BackgroundTask {
   id: string;
-  type: "research" | "reevaluate";
+  type: "research" | "reevaluate" | "update";
   ticker: string;
   companyName?: string;
   reportPath?: string;
@@ -110,6 +110,18 @@ function Reports({
     }
   }, [backgroundTasks]);
 
+  // Auto-close progress modal when selected task is removed or completes
+  useEffect(() => {
+    if (showProgressModal && selectedTaskId) {
+      const task = backgroundTasks.find((t) => t.id === selectedTaskId);
+      // Close modal if task is no longer in the list (dismissed) or completed
+      if (!task || task.status === "completed" || task.status === "error") {
+        setShowProgressModal(false);
+        setSelectedTaskId(null);
+      }
+    }
+  }, [backgroundTasks, showProgressModal, selectedTaskId]);
+
   const handleResearchFromSearch = async () => {
     const hasKey = await window.electronAPI.hasAlphaVantageApiKey();
     if (!hasKey) {
@@ -198,7 +210,11 @@ function Reports({
               <div className="task-info">
                 <span className="task-ticker">{task.ticker}</span>
                 <span className="task-type">
-                  {task.type === "reevaluate" ? "Reevaluating" : "Researching"}
+                  {task.type === "reevaluate"
+                    ? "Reevaluating"
+                    : task.type === "update"
+                      ? "Updating"
+                      : "Researching"}
                 </span>
                 <span className="task-status">
                   {task.status === "running" ? (
@@ -330,7 +346,11 @@ function Reports({
                   <div className="progress-header">
                     <h2>
                       {task.ticker} -{" "}
-                      {task.type === "reevaluate" ? "Reevaluation" : "Research"}
+                      {task.type === "reevaluate"
+                        ? "Reevaluation"
+                        : task.type === "update"
+                          ? "Update"
+                          : "Research"}
                     </h2>
                     <button
                       onClick={() => setShowProgressModal(false)}

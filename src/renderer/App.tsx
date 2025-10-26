@@ -9,7 +9,7 @@ import "./App.css";
 
 interface BackgroundTask {
   id: string;
-  type: "research" | "reevaluate";
+  type: "research" | "reevaluate" | "update";
   ticker: string;
   companyName?: string;
   reportPath?: string;
@@ -21,12 +21,13 @@ interface BackgroundTask {
     input_tokens: number;
     output_tokens: number;
   };
+  chatHistory?: any[];
 }
 
 interface ResearchMetadata {
   id: string;
   ticker: string;
-  type: "research" | "reevaluate";
+  type: "research" | "reevaluate" | "update";
   timestamp: string;
   startTime: string;
   endTime: string;
@@ -286,6 +287,144 @@ function App() {
     }
   };
 
+  const startBackgroundUpdate = async (
+    ticker: string,
+    reportPath: string,
+    chatHistory: any[]
+  ) => {
+    // Create background task
+    const taskId = `${ticker}-update-${Date.now()}`;
+    const newTask: BackgroundTask = {
+      id: taskId,
+      type: "update",
+      ticker: ticker.toUpperCase(),
+      reportPath,
+      chatHistory,
+      output: [],
+      status: "running",
+      startTime: new Date(),
+    };
+
+    setBackgroundTasks((prev) => [...prev, newTask]);
+
+    // Set up event handlers for this specific task
+    const cleanupOutput = window.electronAPI.onDockerOutput((data) => {
+      setBackgroundTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId
+            ? { ...task, output: [...task.output, data.data] }
+            : task,
+        ),
+      );
+    });
+
+    const cleanupComplete = window.electronAPI.onProcessComplete(
+      async (result: any) => {
+        const endTime = new Date();
+
+        // Extract usage from result if available
+        const usage = result?.usage;
+
+        setBackgroundTasks((prev) =>
+          prev.map((task) => {
+            if (task.id === taskId) {
+              // Save metadata to localStorage
+              if (usage) {
+                const metadata: ResearchMetadata = {
+                  id: taskId,
+                  ticker: task.ticker,
+                  type: "update",
+                  timestamp: new Date().toISOString(),
+                  startTime: task.startTime.toISOString(),
+                  endTime: endTime.toISOString(),
+                  duration: endTime.getTime() - task.startTime.getTime(),
+                  usage: {
+                    input_tokens: usage.input_tokens,
+                    output_tokens: usage.output_tokens,
+                    total_tokens: usage.input_tokens + usage.output_tokens,
+                  },
+                  cost: calculateCost(usage.input_tokens, usage.output_tokens),
+                  logs: task.output,
+                  reportPath: result?.path || reportPath,
+                };
+
+                saveResearchMetadata(metadata);
+              }
+
+              return {
+                ...task,
+                status: "completed" as const,
+                endTime,
+                usage,
+                reportPath: result?.path || reportPath,
+              };
+            }
+            return task;
+          }),
+        );
+
+        // If this is an update task and we're viewing a report, open the new report
+        const newReportPath = result?.path;
+        if (newReportPath && currentView === "report-with-chat") {
+          console.log(`📂 Opening updated report: ${newReportPath}`);
+          setSelectedReport(newReportPath);
+          
+          // Immediately remove the completed update task since we're opening the new report
+          setTimeout(() => {
+            setBackgroundTasks((prev) =>
+              prev.filter((task) => task.id !== taskId),
+            );
+          }, 1000); // Short delay to show completion status
+        } else {
+          // Auto-remove completed task after 5 seconds for non-update tasks
+          setTimeout(() => {
+            setBackgroundTasks((prev) =>
+              prev.filter((task) => task.id !== taskId),
+            );
+          }, 5000);
+        }
+      },
+    );
+
+    const cleanupError = window.electronAPI.onProcessError((error) => {
+      setBackgroundTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                output: [...task.output, `\n❌ Error: ${error}\n`],
+                status: "error" as const,
+              }
+            : task,
+        ),
+      );
+    });
+
+    try {
+      await window.electronAPI.updateReport(ticker, chatHistory);
+    } catch (error) {
+      console.error("Update report error:", error);
+      setBackgroundTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                status: "error" as const,
+                output: [
+                  ...task.output,
+                  `\n❌ Error: ${error instanceof Error ? error.message : "Unknown error"}\n`,
+                ],
+              }
+            : task,
+        ),
+      );
+    } finally {
+      cleanupOutput();
+      cleanupComplete();
+      cleanupError();
+    }
+  };
+
   const handleSaveApiKey = async () => {
     if (!apiKey.trim()) {
       alert("Please enter a valid API key");
@@ -346,6 +485,7 @@ function App() {
             reportPath={selectedReport}
             onBack={handleBackToDashboard}
             onReevaluate={handleReevaluate}
+            onUpdateReport={startBackgroundUpdate}
             initialChatOpen={initialChatOpen}
             backgroundTasks={backgroundTasks}
             onDismissTask={(taskId) =>

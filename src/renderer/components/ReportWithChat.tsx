@@ -6,25 +6,9 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import type { ChatMessage, Report, DockerOutput } from "../../shared/types";
 import "./ReportWithChat.css";
 
-// Claude 3.5 Sonnet pricing
-const PRICING = {
-  INPUT_PER_MILLION: 3.0,
-  OUTPUT_PER_MILLION: 15.0,
-};
-
-function calculateCost(inputTokens: number, outputTokens: number) {
-  const inputCost = (inputTokens / 1_000_000) * PRICING.INPUT_PER_MILLION;
-  const outputCost = (outputTokens / 1_000_000) * PRICING.OUTPUT_PER_MILLION;
-  return {
-    input_cost: inputCost,
-    output_cost: outputCost,
-    total_cost: inputCost + outputCost,
-  };
-}
-
 interface BackgroundTask {
   id: string;
-  type: "research" | "reevaluate";
+  type: "research" | "reevaluate" | "update";
   ticker: string;
   companyName?: string;
   reportPath?: string;
@@ -37,6 +21,7 @@ interface ReportWithChatProps {
   reportPath: string;
   onBack: () => void;
   onReevaluate: (reportPath: string) => void;
+  onUpdateReport: (ticker: string, reportPath: string, chatHistory: any[]) => void;
   initialChatOpen?: boolean;
   backgroundTasks: BackgroundTask[];
   onDismissTask: (taskId: string) => void;
@@ -46,6 +31,7 @@ function ReportWithChat({
   reportPath,
   onBack,
   onReevaluate,
+  onUpdateReport,
   initialChatOpen = false,
   backgroundTasks,
   onDismissTask,
@@ -114,6 +100,18 @@ function ReportWithChat({
       }
     }
   }, [messages, ticker, reportPath, sessionStarted]);
+
+  // Auto-close progress modal when selected task is removed or completes
+  useEffect(() => {
+    if (showProgressModal && selectedTaskId) {
+      const task = backgroundTasks.find((t) => t.id === selectedTaskId);
+      // Close modal if task is no longer in the list (dismissed) or completed
+      if (!task || task.status === "completed" || task.status === "error") {
+        setShowProgressModal(false);
+        setSelectedTaskId(null);
+      }
+    }
+  }, [backgroundTasks, showProgressModal, selectedTaskId]);
 
   const loadReport = async () => {
     setReportLoading(true);
@@ -474,117 +472,29 @@ function ReportWithChat({
     }
   };
 
-  const handleUpdateReport = async () => {
-    if (!ticker || !reportPath || isLoading) {
+  const handleUpdateReport = () => {
+    if (!ticker || !reportPath) {
       console.log(
-        `🚫 [DEBUG] handleUpdateReport blocked: ticker=${ticker}, reportPath=${reportPath}, isLoading=${isLoading}`,
+        `🚫 [DEBUG] handleUpdateReport blocked: ticker=${ticker}, reportPath=${reportPath}`,
       );
       return;
     }
 
     console.log(`🔄 [DEBUG] handleUpdateReport starting for ticker: ${ticker}`);
-    const startTime = new Date();
-    setIsLoading(true);
-    setProcessingStatus("Updating report...");
 
-    const logs: string[] = [];
+    // Get chat history from current messages
+    const chatHistoryForUpdate = messages.map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+      timestamp: msg.timestamp.toISOString(),
+    }));
 
-    // Set up progress listener
-    const cleanupProgress = window.electronAPI.onDockerOutput(
-      (output: DockerOutput) => {
-        logs.push(output.data);
-        if (
-          output.data.includes("[DEBUG]") ||
-          output.data.includes("🔎") ||
-          output.data.includes("💭") ||
-          output.data.includes("⚙️")
-        ) {
-          setProcessingStatus(output.data.trim());
-          console.log(`🔊 [PROGRESS] ${output.data.trim()}`);
-        }
-      },
+    console.log(
+      `📞 [DEBUG] Starting background update task for '${ticker}' with ${chatHistoryForUpdate.length} messages`,
     );
 
-    try {
-      // Get chat history from current messages
-      const chatHistoryForUpdate = messages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp.toISOString(),
-      }));
-
-      console.log(
-        `📞 [DEBUG] Calling window.electronAPI.updateReport('${ticker}') with ${chatHistoryForUpdate.length} messages`,
-      );
-      const result = await window.electronAPI.updateReport(
-        ticker,
-        chatHistoryForUpdate,
-      );
-
-      // Handle both string and object return types
-      const reportPath = typeof result === "string" ? result : result.path;
-      const usage = typeof result === "string" ? undefined : result.usage;
-
-      console.log(
-        `✅ [DEBUG] updateReport success, new report path: ${reportPath}`,
-      );
-
-      const endTime = new Date();
-
-      // Store metadata if usage is available
-      if (usage) {
-        const metadata = {
-          id: `update-${ticker}-${Date.now()}`,
-          ticker,
-          type: "update" as const,
-          timestamp: new Date().toISOString(),
-          startTime: startTime.toISOString(),
-          endTime: endTime.toISOString(),
-          duration: endTime.getTime() - startTime.getTime(),
-          usage: {
-            input_tokens: usage.input_tokens,
-            output_tokens: usage.output_tokens,
-            total_tokens: usage.input_tokens + usage.output_tokens,
-          },
-          cost: calculateCost(usage.input_tokens, usage.output_tokens),
-          logs,
-          reportPath,
-        };
-
-        try {
-          const key = "researchMetadata";
-          const existingData = localStorage.getItem(key);
-          const allMetadata = existingData ? JSON.parse(existingData) : [];
-          allMetadata.push(metadata);
-          localStorage.setItem(key, JSON.stringify(allMetadata));
-          console.log("💾 Saved update metadata:", metadata);
-        } catch (error) {
-          console.error("Failed to save update metadata:", error);
-        }
-      }
-
-      // Reload the current report content to see if it was updated
-      await loadReport();
-
-      // Show success status briefly
-      setProcessingStatus("✅ Report updated successfully!");
-      setTimeout(() => setProcessingStatus(""), 3000);
-    } catch (error) {
-      console.error(`❌ [DEBUG] handleUpdateReport error:`, error);
-
-      // Show error status
-      setProcessingStatus(
-        `❌ Update failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-      setTimeout(() => setProcessingStatus(""), 5000);
-    } finally {
-      setIsLoading(false);
-      setProcessingStatus("");
-      cleanupProgress();
-      console.log(
-        `🏁 [DEBUG] handleUpdateReport finished for ticker: ${ticker}`,
-      );
-    }
+    // Start the update as a background task
+    onUpdateReport(ticker, reportPath, chatHistoryForUpdate);
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -704,7 +614,11 @@ function ReportWithChat({
                   {task.ticker}
                 </span>
                 <span style={{ fontSize: "13px", color: "#6b7280" }}>
-                  {task.type === "reevaluate" ? "Reevaluating" : "Researching"}
+                  {task.type === "reevaluate"
+                    ? "Reevaluating"
+                    : task.type === "update"
+                      ? "Updating"
+                      : "Researching"}
                 </span>
                 <span
                   style={{
@@ -839,7 +753,7 @@ function ReportWithChat({
                 <button
                   onClick={handleUpdateReport}
                   className="update-report-button"
-                  disabled={isLoading}
+                  disabled={!ticker || !reportPath}
                 >
                   📝 Update Report
                 </button>
@@ -990,7 +904,11 @@ function ReportWithChat({
                   <div className="progress-header">
                     <h2>
                       {task.ticker} -{" "}
-                      {task.type === "reevaluate" ? "Reevaluation" : "Research"}
+                      {task.type === "reevaluate"
+                        ? "Reevaluation"
+                        : task.type === "update"
+                          ? "Update"
+                          : "Research"}
                     </h2>
                     <button
                       onClick={() => setShowProgressModal(false)}
