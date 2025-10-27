@@ -1003,10 +1003,6 @@ function ReportWithChat({
                         Company: {task.companyName}
                       </p>
                     )}
-
-                    {task.reportPath && (
-                      <p className="report-path">Report: {task.reportPath}</p>
-                    )}
                   </div>
 
                   <div className="progress-output">

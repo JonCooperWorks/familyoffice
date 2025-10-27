@@ -89,57 +89,26 @@ export function checkMetadata() {
 }
 
 export async function compareWithDisk() {
-  console.log("🔍 Comparing localStorage with disk...");
+  console.log("🔍 Checking localStorage status...");
   
   try {
     // Get reports from localStorage
     const localReports = loadReportsFromLocalStorage() || [];
     console.log(`💾 LocalStorage has ${localReports.length} reports`);
+    console.log("\n✅ All reports are stored in localStorage only (disk storage disabled)");
     
-    // Get reports from disk via IPC
-    const diskReports = await window.electronAPI.getReports();
-    console.log(`📂 Disk has ${diskReports.length} reports`);
-    
-    const localTickers = new Set(localReports.map(r => r.ticker));
-    const diskTickers = new Set(diskReports.map(r => r.ticker));
-    
-    // Find reports on disk but not in localStorage
-    const missingInLocal = diskReports.filter(r => {
-      return !localReports.some(lr => lr.path === r.path);
-    });
-    
-    if (missingInLocal.length > 0) {
-      console.log(`\n⚠️ ${missingInLocal.length} reports on disk are missing from localStorage:`);
-      console.table(missingInLocal.map(r => ({
+    if (localReports.length > 0) {
+      console.table(localReports.map(r => ({
         ticker: r.ticker,
-        filename: r.filename,
-        company: r.company || "N/A"
+        company: r.company || "N/A",
+        date: r.date,
+        hasContent: !!r.content
       })));
-    } else {
-      console.log("\n✅ All disk reports are in localStorage");
-    }
-    
-    // Find reports in localStorage but not on disk
-    const missingOnDisk = localReports.filter(r => {
-      return !diskReports.some(dr => dr.path === r.path);
-    });
-    
-    if (missingOnDisk.length > 0) {
-      console.log(`\n⚠️ ${missingOnDisk.length} reports in localStorage are missing from disk:`);
-      console.table(missingOnDisk.map(r => ({
-        ticker: r.ticker,
-        filename: r.filename,
-        company: r.company || "N/A"
-      })));
-    } else {
-      console.log("\n✅ All localStorage reports exist on disk");
     }
     
     return {
       localStorage: localReports,
-      disk: diskReports,
-      missingInLocal,
-      missingOnDisk
+      totalReports: localReports.length
     };
   } catch (error) {
     console.error("❌ Failed to compare:", error);

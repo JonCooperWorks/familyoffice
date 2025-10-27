@@ -9,6 +9,7 @@ interface CommandPaletteProps {
   onNavigate: (view: "reports" | "stats") => void;
   onOpenReport: (reportPath: string) => void;
   onStartResearch: () => void;
+  onStartResearchWithTicker?: (ticker: string) => void;
   currentView: string;
   currentReportPath?: string;
   reports: Report[];
@@ -20,6 +21,7 @@ export function CommandPalette({
   onNavigate,
   onOpenReport,
   onStartResearch,
+  onStartResearchWithTicker,
   currentView,
   currentReportPath,
   reports,
@@ -60,6 +62,14 @@ export function CommandPalette({
     [onClose]
   );
 
+  // Check if search term looks like a ticker and doesn't match any existing reports
+  const searchTicker = search.trim().toUpperCase();
+  const isValidTicker = /^[A-Z0-9.]{1,6}$/.test(searchTicker);
+  const tickerExists = reports.some(
+    (r) => r.ticker.toUpperCase() === searchTicker
+  );
+  const showResearchOption = isValidTicker && !tickerExists && search.length > 0;
+
   if (!isOpen) return null;
 
   return (
@@ -95,7 +105,9 @@ export function CommandPalette({
 
         <Command.List className="command-palette-list">
           <Command.Empty className="command-palette-empty">
-            No results found.
+            {showResearchOption
+              ? `No report found for ${searchTicker}. Select "Research ${searchTicker}..." to create one.`
+              : "No results found."}
           </Command.Empty>
 
           <>
@@ -164,6 +176,52 @@ export function CommandPalette({
               </Command.Group>
 
               <Command.Separator className="command-separator" />
+
+              {showResearchOption && (
+                <>
+                  <Command.Group heading="No Report Found" className="command-group">
+                    <Command.Item
+                      onSelect={() =>
+                        handleSelect(() => {
+                          if (onStartResearchWithTicker) {
+                            // Use the callback to directly start research
+                            onStartResearchWithTicker(searchTicker);
+                          } else {
+                            // Fallback to DOM manipulation
+                            onNavigate("reports");
+                            setTimeout(() => {
+                              const searchInput = document.querySelector('.search-input') as HTMLInputElement;
+                              if (searchInput) {
+                                searchInput.value = searchTicker;
+                                const event = new Event('change', { bubbles: true });
+                                searchInput.dispatchEvent(event);
+                                const inputEvent = new Event('input', { bubbles: true });
+                                searchInput.dispatchEvent(inputEvent);
+                                
+                                setTimeout(() => {
+                                  const researchBtn = document.querySelector('.research-ticker-button') as HTMLButtonElement;
+                                  if (researchBtn) {
+                                    researchBtn.click();
+                                  }
+                                }, 150);
+                              }
+                            }, 100);
+                          }
+                        })
+                      }
+                      className="command-item"
+                      value={`Research ${searchTicker}`}
+                      keywords={[searchTicker, "research", "new"]}
+                    >
+                      <span className="command-icon">✨</span>
+                      <span className="command-label">
+                        Research {searchTicker}...
+                      </span>
+                    </Command.Item>
+                  </Command.Group>
+                  <Command.Separator className="command-separator" />
+                </>
+              )}
 
               <Command.Group heading="Reports" className="command-group">
                 {reports.map((report) => (

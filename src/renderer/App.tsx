@@ -791,6 +791,10 @@ function App() {
             }
           }, 100);
         }}
+        onStartResearchWithTicker={(ticker: string) => {
+          // Start research directly with the ticker
+          startBackgroundResearch("new", ticker);
+        }}
         currentView={currentView}
         currentReportPath={selectedReport}
         reports={reports}

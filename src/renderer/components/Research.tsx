@@ -233,7 +233,6 @@ function Research({ preloadedReport, onClearReport }: ResearchProps) {
             <div className="result-icon">✅</div>
             <div>
               <h3>Report Generated Successfully!</h3>
-              <p className="result-path">{resultPath}</p>
               <button onClick={handleOpenReport} className="open-button">
                 Open Report
               </button>

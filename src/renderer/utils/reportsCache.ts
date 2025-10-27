@@ -128,73 +128,10 @@ export function addReportToLocalStorage(report: Report): void {
 /**
  * Migrate existing reports from file system to localStorage (one-time operation)
  * This is useful if you have old reports on disk that need to be imported
+ * @deprecated - All reports are now stored in localStorage only
  */
 export async function migrateReportsFromFileSystem(): Promise<number> {
-  try {
-    console.log("🔄 Migrating reports from file system to localStorage...");
-    
-    // Check if we already have reports in localStorage
-    const existingReports = loadReportsFromLocalStorage() || [];
-    
-    // Get reports metadata from file system
-    const diskReports = await window.electronAPI.getReports();
-    
-    if (diskReports.length === 0) {
-      console.log("📂 No reports found on file system");
-      return 0;
-    }
-    
-    console.log(`📂 Found ${diskReports.length} reports on disk`);
-    console.log(`💾 Found ${existingReports.length} reports in localStorage`);
-    
-    // Create a map of existing reports by path for quick lookup
-    const existingMap = new Map(existingReports.map(r => [r.path, r]));
-    
-    let updatedCount = 0;
-    let addedCount = 0;
-    
-    // Fetch content for each report
-    const reportsWithContent = await Promise.all(
-      diskReports.map(async (diskReport) => {
-        try {
-          const content = await window.electronAPI.readReport(diskReport.path);
-          const existing = existingMap.get(diskReport.path);
-          
-          if (existing) {
-            // Report exists in localStorage - check if it needs content
-            if (!existing.content) {
-              console.log(`📝 Adding content to existing report: ${diskReport.ticker}`);
-              updatedCount++;
-              return { ...existing, content };
-            } else {
-              // Already has content, keep existing
-              return existing;
-            }
-          } else {
-            // New report
-            console.log(`➕ Adding new report: ${diskReport.ticker}`);
-            addedCount++;
-            return { ...diskReport, content };
-          }
-        } catch (error) {
-          console.error(`❌ Failed to read report ${diskReport.path}:`, error);
-          // Keep existing if we have it, otherwise return null
-          return existingMap.get(diskReport.path) || null;
-        }
-      })
-    );
-    
-    // Filter out failed reads and save to localStorage
-    const validReports = reportsWithContent.filter((r): r is Report => r !== null);
-    if (validReports.length > 0) {
-      saveReportsToLocalStorage(validReports);
-      console.log(`✅ Migration complete: ${addedCount} added, ${updatedCount} updated`);
-    }
-    
-    return addedCount + updatedCount;
-  } catch (error) {
-    console.error("Failed to migrate reports:", error);
-    return 0;
-  }
+  console.log("📂 Migration skipped - all reports stored in localStorage");
+  return 0;
 }
 

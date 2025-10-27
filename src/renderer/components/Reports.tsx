@@ -4,7 +4,6 @@ import {
   getReports,
   syncReportsFromFileSystem,
   saveReportsToLocalStorage,
-  migrateReportsFromFileSystem,
 } from "../utils/reportsCache";
 import { Skeleton } from "@/components/ui/skeleton";
 import "./Reports.css";
@@ -69,25 +68,7 @@ function Reports({
   const loadReports = async () => {
     setLoading(true);
     try {
-      let data = await getReports();
-      
-      // Check if any reports are missing content and need migration
-      const reportsNeedingContent = data.filter(r => !r.content);
-      
-      if (data.length === 0 || reportsNeedingContent.length > 0) {
-        if (data.length === 0) {
-          console.log("📂 LocalStorage is empty, checking for reports on disk...");
-        } else {
-          console.log(`📝 ${reportsNeedingContent.length} reports missing content, updating...`);
-        }
-        
-        const migratedCount = await migrateReportsFromFileSystem();
-        if (migratedCount > 0) {
-          console.log(`✅ Updated ${migratedCount} reports with content from disk`);
-          data = await getReports(); // Reload from localStorage
-        }
-      }
-      
+      const data = await getReports();
       setReports(data);
     } catch (error) {
       console.error("Failed to load reports:", error);
@@ -108,20 +89,14 @@ function Reports({
     }
 
     try {
-      const success = await window.electronAPI.deleteReport(report.path);
-
-      if (success) {
-        // Remove the report from the local state immediately
-        const updatedReports = reports.filter((r) => r.path !== report.path);
-        setReports(updatedReports);
-        
-        // Update localStorage
-        saveReportsToLocalStorage(updatedReports);
-        
-        console.log("Report deleted successfully:", report.filename);
-      } else {
-        alert("Failed to delete the report. Please try again.");
-      }
+      // Remove the report from localStorage and local state
+      const updatedReports = reports.filter((r) => r.path !== report.path);
+      setReports(updatedReports);
+      
+      // Update localStorage
+      saveReportsToLocalStorage(updatedReports);
+      
+      console.log("Report deleted successfully:", report.filename);
     } catch (error) {
       console.error("Error deleting report:", error);
       alert("An error occurred while deleting the report. Please try again.");
@@ -496,10 +471,6 @@ function Reports({
                       <p className="company-name">
                         Company: {task.companyName}
                       </p>
-                    )}
-
-                    {task.reportPath && (
-                      <p className="report-path">Report: {task.reportPath}</p>
                     )}
                   </div>
 

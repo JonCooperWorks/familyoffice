@@ -8,7 +8,6 @@ import {
 } from "electron";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { readdir, readFile, stat } from "fs/promises";
 import { DependencyManager } from "./deps";
 import { AgentManager } from "./agentManager";
 import type { ResearchRequest, Report } from "../shared/types";
@@ -18,7 +17,6 @@ import {
   hasAlphaVantageMcpServer,
   setAlphaVantageMcpServer,
 } from "../utils/codexConfig";
-import { calculateCost } from "../shared/pricing";
 
 // Fix PATH and set Codex binary location early
 fixPath();
@@ -247,8 +245,6 @@ ipcMain.handle("prompt-alphavantage-api-key", async () => {
 });
 
 ipcMain.handle("run-research", async (_event, request: ResearchRequest) => {
-  const startTime = Date.now();
-  const timestamp = new Date().toISOString();
   const logs: string[] = [];
 
   try {
@@ -275,62 +271,9 @@ ipcMain.handle("run-research", async (_event, request: ResearchRequest) => {
       result = await agentManager.runResearch(request);
     }
 
-    // Calculate cost and duration
-    const endTime = Date.now();
-    const duration = endTime - startTime;
-
     if (result.usage) {
-      // Calculate costs using centralized pricing configuration
-      const costs = calculateCost(
-        result.usage.input_tokens,
-        result.usage.output_tokens
-      );
-
-      // Save metadata
-      const metadata = {
-        id: `${request.ticker}-${timestamp}`,
-        ticker: request.ticker,
-        type: request.reportPath ? "reevaluate" : "research",
-        timestamp,
-        startTime: new Date(startTime).toISOString(),
-        endTime: new Date(endTime).toISOString(),
-        duration,
-        usage: {
-          input_tokens: result.usage.input_tokens,
-          output_tokens: result.usage.output_tokens,
-          total_tokens: result.usage.input_tokens + result.usage.output_tokens,
-        },
-        cost: costs,
-        logs: logs,
-        reportPath: result.path,
-      };
-
-      // Save to metadata storage
-      try {
-        const metadataDir = join(app.getPath("userData"), "metadata");
-        const {
-          mkdir,
-          readFile: fsReadFile,
-          writeFile: fsWriteFile,
-        } = await import("fs/promises");
-
-        await mkdir(metadataDir, { recursive: true });
-        const metadataPath = join(metadataDir, "research-metadata.json");
-
-        let existingData: any[] = [];
-        try {
-          const data = await fsReadFile(metadataPath, "utf-8");
-          existingData = JSON.parse(data);
-        } catch {
-          // File doesn't exist, start with empty array
-        }
-
-        existingData.push(metadata);
-        await fsWriteFile(metadataPath, JSON.stringify(existingData, null, 2));
-        console.log("✅ Metadata saved successfully");
-      } catch (error) {
-        console.error("❌ Failed to save metadata:", error);
-      }
+      // Metadata will be saved in localStorage by the frontend
+      console.log("✅ Metadata will be handled by frontend localStorage");
     }
 
     mainWindow?.webContents.send("process-complete", result);
@@ -380,8 +323,6 @@ ipcMain.handle(
 ipcMain.handle(
   "update-report",
   async (_event, ticker: string, chatHistory?: any[]) => {
-    const startTime = Date.now();
-    const timestamp = new Date().toISOString();
     const logs: string[] = [];
 
     console.log(
@@ -411,66 +352,9 @@ ipcMain.handle(
         `✅ [IPC DEBUG] updateReport successful, result path: ${result.path}`,
       );
 
-      // Calculate cost and duration
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
       if (result.usage) {
-        // Calculate costs using centralized pricing configuration
-        const costs = calculateCost(
-          result.usage.input_tokens,
-          result.usage.output_tokens
-        );
-
-        // Save metadata
-        const metadata = {
-          id: `${ticker}-${timestamp}`,
-          ticker: ticker,
-          type: "update",
-          timestamp,
-          startTime: new Date(startTime).toISOString(),
-          endTime: new Date(endTime).toISOString(),
-          duration,
-          usage: {
-            input_tokens: result.usage.input_tokens,
-            output_tokens: result.usage.output_tokens,
-            total_tokens:
-              result.usage.input_tokens + result.usage.output_tokens,
-          },
-          cost: costs,
-          logs: logs,
-          reportPath: result.path,
-        };
-
-        // Save to metadata storage
-        try {
-          const metadataDir = join(app.getPath("userData"), "metadata");
-          const {
-            mkdir,
-            readFile: fsReadFile,
-            writeFile: fsWriteFile,
-          } = await import("fs/promises");
-
-          await mkdir(metadataDir, { recursive: true });
-          const metadataPath = join(metadataDir, "research-metadata.json");
-
-          let existingData: any[] = [];
-          try {
-            const data = await fsReadFile(metadataPath, "utf-8");
-            existingData = JSON.parse(data);
-          } catch {
-            // File doesn't exist, start with empty array
-          }
-
-          existingData.push(metadata);
-          await fsWriteFile(
-            metadataPath,
-            JSON.stringify(existingData, null, 2),
-          );
-          console.log("✅ Metadata saved successfully");
-        } catch (error) {
-          console.error("❌ Failed to save metadata:", error);
-        }
+        // Metadata will be saved in localStorage by the frontend
+        console.log("✅ Metadata will be handled by frontend localStorage");
       }
 
       console.log(`📡 [IPC DEBUG] Sending process-complete event`);
@@ -488,104 +372,29 @@ ipcMain.handle(
   },
 );
 
+// Reports are now stored in localStorage only, not on disk
 ipcMain.handle("get-reports", async (): Promise<Report[]> => {
-  const reportsDir = join(PROJECT_ROOT, "reports");
-
-  try {
-    const files = await readdir(reportsDir);
-    const reports: Report[] = [];
-
-    for (const file of files) {
-      if (!file.endsWith(".md")) continue;
-
-      const filePath = join(reportsDir, file);
-      const stats = await stat(filePath);
-
-      // Parse filename: research-AAPL-2025-10-11T14-30-00.md
-      // Updated pattern to support tickers with numbers and dots
-      const match = file.match(/^research-([A-Z0-9.]+)-(.+)\.md$/);
-      if (!match) {
-        console.log(`⚠️ Skipping file that doesn't match pattern: ${file}`);
-        continue;
-      }
-
-      const ticker = match[1];
-
-      // Try to extract company name from file content
-      let company: string | undefined;
-      try {
-        const content = await readFile(filePath, "utf-8");
-        const companyMatch = content.match(/\*\*Company:\*\*\s*(.+)/);
-        if (companyMatch) {
-          company = companyMatch[1].trim();
-        }
-      } catch {
-        // Ignore errors reading file content
-      }
-
-      reports.push({
-        filename: file,
-        path: filePath,
-        ticker,
-        company,
-        date: stats.mtime,
-        type: file.includes("reevaluation") ? "reevaluation" : "research",
-      });
-    }
-
-    // Sort by date, most recent first
-    reports.sort((a, b) => b.date.getTime() - a.date.getTime());
-
-    console.log(`📊 Found ${reports.length} reports in ${reportsDir}`);
-    if (reports.length > 0) {
-      console.log(`📋 Report tickers: ${reports.map(r => r.ticker).join(", ")}`);
-    }
-
-    return reports;
-  } catch (error) {
-    console.error("Error reading reports:", error);
-    return [];
-  }
+  console.log("📊 Reports are stored in localStorage (not disk)");
+  return [];
 });
 
 ipcMain.handle("open-report", async (_event, path: string) => {
   await shell.openPath(path);
 });
 
+// Reports are managed in localStorage, no disk deletion needed
 ipcMain.handle(
   "delete-report",
-  async (_event, reportPath: string): Promise<boolean> => {
-    try {
-      const fs = await import("fs/promises");
-
-      // Check if file exists
-      try {
-        await fs.access(reportPath);
-      } catch {
-        console.log("Report file does not exist:", reportPath);
-        return true; // File doesn't exist, consider it "deleted"
-      }
-
-      // Delete the file
-      await fs.unlink(reportPath);
-      console.log("Successfully deleted report:", reportPath);
-
-      return true;
-    } catch (error) {
-      console.error("Error deleting report:", error);
-      return false;
-    }
+  async (): Promise<boolean> => {
+    console.log("Report deletion handled in localStorage");
+    return true;
   },
 );
 
-ipcMain.handle("read-report", async (_event, path: string) => {
-  try {
-    const content = await readFile(path, "utf-8");
-    return content;
-  } catch (error) {
-    console.error("Error reading report:", error);
-    throw error;
-  }
+// Reports are stored in localStorage with content, no disk read needed
+ipcMain.handle("read-report", async () => {
+  console.log("Report content is stored in localStorage");
+  return ""; // Content should come from localStorage
 });
 
 ipcMain.handle(
@@ -660,66 +469,20 @@ ipcMain.handle(
   },
 );
 
-// Metadata storage handler
-ipcMain.handle("save-metadata", async (_event, metadata: any) => {
-  try {
-    // Store metadata in userData directory
-    const metadataDir = join(app.getPath("userData"), "metadata");
-    const fs = await import("fs/promises");
-
-    // Ensure directory exists
-    await fs.mkdir(metadataDir, { recursive: true });
-
-    const metadataPath = join(metadataDir, "research-metadata.json");
-
-    // Read existing metadata
-    let existingData: any[] = [];
-    try {
-      const data = await fs.readFile(metadataPath, "utf-8");
-      existingData = JSON.parse(data);
-    } catch {
-      // File doesn't exist or is invalid, start with empty array
-    }
-
-    // Add new metadata
-    existingData.push(metadata);
-
-    // Write back to file
-    await fs.writeFile(metadataPath, JSON.stringify(existingData, null, 2));
-
-    return true;
-  } catch (error) {
-    console.error("Error saving metadata:", error);
-    return false;
-  }
+// Metadata is stored in localStorage, not on disk
+ipcMain.handle("save-metadata", async () => {
+  console.log("Metadata is handled in localStorage");
+  return true;
 });
 
-// Get all metadata
+// Metadata is stored in localStorage, not on disk
 ipcMain.handle("get-metadata", async () => {
-  try {
-    const metadataDir = join(app.getPath("userData"), "metadata");
-    const metadataPath = join(metadataDir, "research-metadata.json");
-    const fs = await import("fs/promises");
-
-    const data = await fs.readFile(metadataPath, "utf-8");
-    return JSON.parse(data);
-  } catch {
-    // File doesn't exist, return empty array
-    return [];
-  }
+  console.log("Metadata is handled in localStorage");
+  return [];
 });
 
-// Clear all metadata
+// Metadata is stored in localStorage, not on disk
 ipcMain.handle("clear-metadata", async () => {
-  try {
-    const metadataDir = join(app.getPath("userData"), "metadata");
-    const metadataPath = join(metadataDir, "research-metadata.json");
-    const fs = await import("fs/promises");
-
-    await fs.writeFile(metadataPath, JSON.stringify([], null, 2));
-    return true;
-  } catch (error) {
-    console.error("Error clearing metadata:", error);
-    return false;
-  }
+  console.log("Metadata clearing is handled in localStorage");
+  return true;
 });
