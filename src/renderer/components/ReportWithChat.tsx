@@ -562,12 +562,16 @@ function ReportWithChat({
             >
               🔄 Reevaluate
             </button>
-            <button className="action-button" onClick={handleCopy}>
-              {copied ? "✓ Copied!" : "📋 Copy"}
-            </button>
-            <button className="action-button" onClick={handleExport}>
-              📄 Export PDF
-            </button>
+            {chatOpen && (
+              <button
+                className="action-button"
+                onClick={handleUpdateReport}
+                disabled={!ticker || !reportPath || messages.length <= 1}
+                title={messages.length <= 1 ? "Chat with the report first to incorporate insights" : "Update report with chat insights"}
+              >
+                📝 Incorporate Chat
+              </button>
+            )}
             <button
               className={`action-button ${chatOpen ? "active" : "primary"}`}
               onClick={handleToggleChat}
@@ -706,7 +710,16 @@ function ReportWithChat({
           )}
 
           {!reportLoading && !reportError && (
-            <div className="report-content" ref={reportContentRef}>
+            <>
+              <div className="report-actions-toolbar">
+                <button className="report-action-btn" onClick={handleCopy}>
+                  {copied ? "✓ Copied!" : "📋 Copy Report"}
+                </button>
+                <button className="report-action-btn" onClick={handleExport}>
+                  📄 Export PDF
+                </button>
+              </div>
+              <div className="report-content" ref={reportContentRef}>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[
@@ -745,7 +758,8 @@ function ReportWithChat({
               >
                 {reportContent}
               </ReactMarkdown>
-            </div>
+              </div>
+            </>
           )}
         </div>
 
@@ -757,13 +771,6 @@ function ReportWithChat({
                 <span className="report-indicator">📄 Report loaded</span>
               </div>
               <div className="chat-controls">
-                <button
-                  onClick={handleUpdateReport}
-                  className="update-report-button"
-                  disabled={!ticker || !reportPath}
-                >
-                  📝 Update Report
-                </button>
                 <button onClick={handleClearChat} className="clear-button">
                   🗑️ Clear
                 </button>
