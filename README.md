@@ -131,7 +131,7 @@ Track your API usage and costs by clicking the **📊 Stats** button:
 - **Activity Breakdown**: By ticker, type, and date
 - **Export Data**: Download metadata as JSON for external analysis
 
-See [STATS_UI.md](./STATS_UI.md) for detailed information.
+See [STATS_UI.md](./docs/STATS_UI.md) for detailed information.
 
 ## 🔒 Security
 
@@ -272,10 +272,10 @@ This application combines a modern Electron desktop interface with the **OpenAI 
 
 ## 📚 Additional Resources
 
-- [CODEX_CONFIG.md](./CODEX_CONFIG.md) - Automatic Codex configuration management
-- [METADATA.md](./METADATA.md) - Research metadata storage documentation
-- [STATS_UI.md](./STATS_UI.md) - Usage statistics interface guide
-- [PRICING_UPDATE.md](./PRICING_UPDATE.md) - Pricing configuration details
+- [CODEX_CONFIG.md](./docs/CODEX_CONFIG.md) - Automatic Codex configuration management
+- [METADATA.md](./docs/METADATA.md) - Research metadata storage documentation
+- [STATS_UI.md](./docs/STATS_UI.md) - Usage statistics interface guide
+- [PRICING_UPDATE.md](./docs/PRICING_UPDATE.md) - Pricing configuration details
 - [Codex SDK Documentation](https://github.com/openai/codex/tree/main/sdk/typescript)
 
 ## 📄 License
