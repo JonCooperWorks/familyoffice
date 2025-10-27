@@ -73,6 +73,15 @@
       "dist-electron/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "prompts",
+        "to": "prompts",
+        "filter": [
+          "**/*.md"
+        ]
+      }
+    ],
     "directories": {
       "buildResources": "build",
       "output": "release"
