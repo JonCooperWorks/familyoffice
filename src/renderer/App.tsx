@@ -3,9 +3,12 @@ import DepsCheck from "./components/DepsCheck";
 import Reports from "./components/Reports";
 import ReportWithChat from "./components/ReportWithChat";
 import Stats from "./components/Stats";
+import { CommandPalette } from "./components/CommandPalette";
 import type { DependencyStatus, ResearchRequest, Report } from "../shared/types";
-import { addReportToLocalStorage, getReportContent } from "./utils/reportsCache";
+import { addReportToLocalStorage, getReportContent, getReports } from "./utils/reportsCache";
 import "./utils/metadataViewer"; // Load metadata viewer utilities
+import { Toaster } from "@/components/ui/toaster";
+import { showSuccessToast, showErrorToast, showLoadingToast, dismissToast } from "@/lib/toast";
 import "./App.css";
 
 interface BackgroundTask {
@@ -23,6 +26,7 @@ interface BackgroundTask {
     output_tokens: number;
   };
   chatHistory?: any[];
+  toastId?: string;
 }
 
 interface ResearchMetadata {
@@ -81,10 +85,80 @@ function App() {
   const [pendingReevaluate, setPendingReevaluate] = useState<string | null>(
     null,
   );
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [reports, setReports] = useState<Report[]>([]);
 
   useEffect(() => {
     checkDependencies();
+    loadReports();
   }, []);
+
+  // Load reports for command palette
+  const loadReports = async () => {
+    try {
+      const data = await getReports();
+      setReports(data);
+    } catch (error) {
+      console.error("Failed to load reports:", error);
+    }
+  };
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+      // ⌘K / Ctrl+K - Open command palette
+      if (cmdOrCtrl && e.key === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen(true);
+        return;
+      }
+
+      // ⌘1 - Go to Reports
+      if (cmdOrCtrl && e.key === '1') {
+        e.preventDefault();
+        setCurrentView('dashboard');
+        setSelectedReport(undefined);
+        return;
+      }
+
+      // ⌘2 - Go to Stats
+      if (cmdOrCtrl && e.key === '2') {
+        e.preventDefault();
+        setCurrentView('stats');
+        setSelectedReport(undefined);
+        return;
+      }
+
+      // ⌘N - New research (only when on dashboard view)
+      if (cmdOrCtrl && e.key === 'n' && currentView === 'dashboard') {
+        e.preventDefault();
+        // Focus search input
+        const searchInput = document.querySelector('.search-input') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+        return;
+      }
+
+      // ⌘F - Focus search (when on dashboard)
+      if (cmdOrCtrl && e.key === 'f' && currentView === 'dashboard') {
+        e.preventDefault();
+        const searchInput = document.querySelector('.search-input') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentView]);
 
   const checkDependencies = async () => {
     const status = await window.electronAPI.checkDependencies();
@@ -134,15 +208,26 @@ function App() {
   ) => {
     // Create background task
     const taskId = `${ticker}-${Date.now()}`;
+    const taskType = mode === "reevaluate" ? "reevaluate" : "research";
+    
+    // Show loading toast
+    const toastId = showLoadingToast(
+      taskType === "reevaluate" 
+        ? `Reevaluating ${ticker.toUpperCase()}...`
+        : `Researching ${ticker.toUpperCase()}...`,
+      "This may take a few minutes"
+    );
+    
     const newTask: BackgroundTask = {
       id: taskId,
-      type: mode === "reevaluate" ? "reevaluate" : "research",
+      type: taskType,
       ticker: ticker.toUpperCase(),
       companyName,
       reportPath,
       output: [],
       status: "running",
       startTime: new Date(),
+      toastId,
     };
 
     setBackgroundTasks((prev) => [...prev, newTask]);
@@ -208,6 +293,22 @@ function App() {
                 saveResearchMetadata(metadata);
               }
 
+              // Dismiss loading toast and show success toast
+              if (task.toastId) {
+                dismissToast(task.toastId);
+              }
+              
+              showSuccessToast({
+                title: `${task.ticker} report ready!`,
+                description: usage 
+                  ? `${usage.input_tokens + usage.output_tokens} tokens used`
+                  : undefined,
+                action: result?.path ? {
+                  label: "View",
+                  onClick: () => handleOpenReport(result.path),
+                } : undefined,
+              });
+
               return {
                 ...task,
                 status: "completed" as const,
@@ -230,15 +331,30 @@ function App() {
 
     const cleanupError = window.electronAPI.onProcessError((error) => {
       setBackgroundTasks((prev) =>
-        prev.map((task) =>
-          task.id === taskId
-            ? {
-                ...task,
-                output: [...task.output, `\n❌ Error: ${error}\n`],
-                status: "error" as const,
-              }
-            : task,
-        ),
+        prev.map((task) => {
+          if (task.id === taskId) {
+            // Dismiss loading toast and show error toast
+            if (task.toastId) {
+              dismissToast(task.toastId);
+            }
+            
+            showErrorToast({
+              title: `Failed to research ${task.ticker}`,
+              description: String(error),
+              action: {
+                label: "Retry",
+                onClick: () => startBackgroundResearch(mode, ticker, companyName, reportPath),
+              },
+            });
+            
+            return {
+              ...task,
+              output: [...task.output, `\n❌ Error: ${error}\n`],
+              status: "error" as const,
+            };
+          }
+          return task;
+        }),
       );
     });
 
@@ -253,6 +369,22 @@ function App() {
       await window.electronAPI.runResearch(request);
     } catch (error) {
       console.error("Research error:", error);
+      
+      // Dismiss loading toast and show error toast
+      const task = backgroundTasks.find((t) => t.id === taskId);
+      if (task?.toastId) {
+        dismissToast(task.toastId);
+      }
+      
+      showErrorToast({
+        title: `Failed to research ${ticker.toUpperCase()}`,
+        description: error instanceof Error ? error.message : "Unknown error",
+        action: {
+          label: "Retry",
+          onClick: () => startBackgroundResearch(mode, ticker, companyName, reportPath),
+        },
+      });
+      
       setBackgroundTasks((prev) =>
         prev.map((task) =>
           task.id === taskId
@@ -299,6 +431,13 @@ function App() {
   ) => {
     // Create background task
     const taskId = `${ticker}-update-${Date.now()}`;
+    
+    // Show loading toast
+    const toastId = showLoadingToast(
+      `Updating ${ticker.toUpperCase()} report...`,
+      "Incorporating chat insights"
+    );
+    
     const newTask: BackgroundTask = {
       id: taskId,
       type: "update",
@@ -308,6 +447,7 @@ function App() {
       output: [],
       status: "running",
       startTime: new Date(),
+      toastId,
     };
 
     setBackgroundTasks((prev) => [...prev, newTask]);
@@ -371,6 +511,23 @@ function App() {
                 saveResearchMetadata(metadata);
               }
 
+              // Dismiss loading toast and show success toast
+              if (task.toastId) {
+                dismissToast(task.toastId);
+              }
+              
+              showSuccessToast({
+                title: `${task.ticker} report updated!`,
+                description: "Chat insights incorporated",
+                action: result?.path ? {
+                  label: "View",
+                  onClick: () => {
+                    setSelectedReport(result.path);
+                    setCurrentView("report-with-chat");
+                  },
+                } : undefined,
+              });
+
               return {
                 ...task,
                 status: "completed" as const,
@@ -408,15 +565,30 @@ function App() {
 
     const cleanupError = window.electronAPI.onProcessError((error) => {
       setBackgroundTasks((prev) =>
-        prev.map((task) =>
-          task.id === taskId
-            ? {
-                ...task,
-                output: [...task.output, `\n❌ Error: ${error}\n`],
-                status: "error" as const,
-              }
-            : task,
-        ),
+        prev.map((task) => {
+          if (task.id === taskId) {
+            // Dismiss loading toast and show error toast
+            if (task.toastId) {
+              dismissToast(task.toastId);
+            }
+            
+            showErrorToast({
+              title: `Failed to update ${task.ticker} report`,
+              description: String(error),
+              action: {
+                label: "Retry",
+                onClick: () => startBackgroundUpdate(ticker, reportPath, chatHistory),
+              },
+            });
+            
+            return {
+              ...task,
+              output: [...task.output, `\n❌ Error: ${error}\n`],
+              status: "error" as const,
+            };
+          }
+          return task;
+        }),
       );
     });
 
@@ -424,6 +596,22 @@ function App() {
       await window.electronAPI.updateReport(ticker, chatHistory);
     } catch (error) {
       console.error("Update report error:", error);
+      
+      // Dismiss loading toast and show error toast
+      const task = backgroundTasks.find((t) => t.id === taskId);
+      if (task?.toastId) {
+        dismissToast(task.toastId);
+      }
+      
+      showErrorToast({
+        title: `Failed to update ${ticker.toUpperCase()} report`,
+        description: error instanceof Error ? error.message : "Unknown error",
+        action: {
+          label: "Retry",
+          onClick: () => startBackgroundUpdate(ticker, reportPath, chatHistory),
+        },
+      });
+      
       setBackgroundTasks((prev) =>
         prev.map((task) =>
           task.id === taskId
@@ -475,27 +663,63 @@ function App() {
     }
   };
 
+  const getReportTitle = () => {
+    if (currentView === "report-with-chat" && selectedReport) {
+      const filename = selectedReport.split("/").pop() || "";
+      const match = filename.match(/research-([A-Z]+)-/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+    return null;
+  };
+
   return (
     <div className="app">
+      <Toaster />
       <header className="app-header">
         <div className="header-content">
-          <h1>familyoffice</h1>
-          {currentView !== "report-with-chat" && (
-            <nav className="header-nav">
-              <button
-                className={`nav-button ${currentView === "dashboard" ? "active" : ""}`}
-                onClick={() => setCurrentView("dashboard")}
-              >
-                📄 Reports
+          <div className="header-left">
+            <h1>familyoffice</h1>
+            {currentView === "report-with-chat" && (
+              <div className="breadcrumbs">
+                <button
+                  onClick={handleBackToDashboard}
+                  className="breadcrumb-link"
+                >
+                  Reports
+                </button>
+                <span className="breadcrumb-separator">/</span>
+                <span className="breadcrumb-current">{getReportTitle()}</span>
+              </div>
+            )}
+          </div>
+          <nav className="header-nav">
+            <button
+              className={`nav-button ${currentView === "dashboard" ? "active" : ""}`}
+              onClick={() => setCurrentView("dashboard")}
+            >
+              📄 Reports
+            </button>
+            <button
+              className={`nav-button ${currentView === "stats" ? "active" : ""}`}
+              onClick={() => setCurrentView("stats")}
+            >
+              📊 Stats
+            </button>
+            {backgroundTasks.length > 0 && (
+              <button className="nav-button tasks-indicator">
+                ⚡ Tasks ({backgroundTasks.filter((t) => t.status === "running").length})
               </button>
-              <button
-                className={`nav-button ${currentView === "stats" ? "active" : ""}`}
-                onClick={() => setCurrentView("stats")}
-              >
-                📊 Stats
-              </button>
-            </nav>
-          )}
+            )}
+            <button 
+              className="nav-button command-palette-trigger"
+              onClick={() => setCommandPaletteOpen(true)}
+              title="Open command palette (⌘K)"
+            >
+              ⌘K
+            </button>
+          </nav>
         </div>
       </header>
 
@@ -526,6 +750,37 @@ function App() {
           />
         )}
       </main>
+
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onNavigate={(view) => {
+          if (view === "reports") {
+            setCurrentView("dashboard");
+            setSelectedReport(undefined);
+          } else if (view === "stats") {
+            setCurrentView("stats");
+            setSelectedReport(undefined);
+          }
+        }}
+        onOpenReport={handleOpenReport}
+        onStartResearch={() => {
+          // Focus search input when starting research
+          setCurrentView("dashboard");
+          setSelectedReport(undefined);
+          setTimeout(() => {
+            const searchInput = document.querySelector('.search-input') as HTMLInputElement;
+            if (searchInput) {
+              searchInput.focus();
+              searchInput.select();
+            }
+          }, 100);
+        }}
+        currentView={currentView}
+        currentReportPath={selectedReport}
+        reports={reports}
+      />
 
       {/* API Key Prompt Modal */}
       {showApiKeyPrompt && (

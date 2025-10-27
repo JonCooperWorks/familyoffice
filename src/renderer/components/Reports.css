@@ -111,25 +111,100 @@
 
 .empty-state {
   text-align: center;
-  padding: 80px 20px;
+  padding: 80px 40px;
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 .empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-  opacity: 0.5;
+  font-size: 72px;
+  margin-bottom: 20px;
+  opacity: 0.6;
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 0.6;
+    transform: translateY(0);
+  }
 }
 
 .empty-state h3 {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   color: #1d1d1f;
 }
 
-.empty-state p {
+.empty-description {
   color: #6e6e73;
   font-size: 15px;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.empty-action-button {
+  background: #0071e3;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 16px;
+}
+
+.empty-action-button:hover {
+  background: #0077ed;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+}
+
+.empty-suggestions {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.suggestions-label {
+  font-size: 13px;
+  color: #6e6e73;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.suggestion-chips {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.suggestion-chip {
+  background: #f5f5f7;
+  color: #1d1d1f;
+  padding: 8px 16px;
+  border: 1px solid #d2d2d7;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.suggestion-chip:hover {
+  background: #0071e3;
+  color: white;
+  border-color: #0071e3;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.2);
 }
 
 .reports-grid {
@@ -825,4 +900,155 @@
   .reports {
     padding: 12px;
   }
+}
+
+/* New Report Card Design (Phase 1.8) */
+.report-card-new {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f0f0;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.report-card-new:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: #e0e0e0;
+}
+
+.report-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.report-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.report-ticker-new {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1d1d1f;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.quality-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: help;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.quality-indicator:hover {
+  transform: scale(1.15);
+}
+
+.report-type-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.report-company-name {
+  font-size: 14px;
+  color: #6e6e73;
+  margin: 0;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-date-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f5f5f7;
+}
+
+.report-date-text {
+  color: #1d1d1f;
+  font-weight: 500;
+}
+
+.report-relative-time {
+  color: #6e6e73;
+}
+
+.report-quick-stats {
+  display: flex;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.stat-icon {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.report-card-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.open-report-btn {
+  flex: 1;
+  font-weight: 500;
+  height: 36px;
+}
+
+.chat-btn {
+  width: 40px;
+  height: 36px;
+  padding: 0;
+  font-size: 16px;
+}
+
+.more-actions-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+/* Override dropdown menu styles */
+.report-card-new [data-radix-dropdown-menu-content] {
+  min-width: 180px;
 }

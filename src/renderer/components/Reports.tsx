@@ -6,6 +6,7 @@ import {
   saveReportsToLocalStorage,
   migrateReportsFromFileSystem,
 } from "../utils/reportsCache";
+import { Skeleton } from "@/components/ui/skeleton";
 import "./Reports.css";
 
 interface BackgroundTask {
@@ -236,9 +237,42 @@ function Reports({
 
   if (loading) {
     return (
-      <div className="reports loading">
-        <div className="loading-spinner"></div>
-        <p>Loading reports...</p>
+      <div className="reports">
+        <div className="reports-header">
+          <div>
+            <h2>Research Reports</h2>
+            <p className="description">
+              Search for existing reports or research a new stock
+            </p>
+          </div>
+        </div>
+
+        <div className="search-bar">
+          <Skeleton className="h-[46px] w-full rounded-[10px]" />
+        </div>
+
+        <div className="reports-grid">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="report-card">
+              <div className="report-header">
+                <div>
+                  <Skeleton className="h-8 w-20 mb-2" />
+                </div>
+                <Skeleton className="h-6 w-24 rounded-md" />
+              </div>
+
+              <div className="report-meta">
+                <Skeleton className="h-4 w-48" />
+              </div>
+
+              <div className="report-actions">
+                <Skeleton className="h-10 flex-1 rounded-lg" />
+                <Skeleton className="h-10 flex-1 rounded-lg" />
+                <Skeleton className="h-10 w-12 rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -337,13 +371,55 @@ function Reports({
 
       {filteredReports.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">📄</div>
-          <h3>No reports found</h3>
-          <p>
+          <div className="empty-icon">
+            {searchTerm ? "🔍" : "📄"}
+          </div>
+          <h3>
             {searchTerm
-              ? `No reports found for "${searchTerm}"`
-              : "Search for a ticker to get started"}
+              ? `No reports for "${searchTerm}"`
+              : reports.length === 0
+                ? "No Research Reports Yet"
+                : "No reports found"}
+          </h3>
+          <p className="empty-description">
+            {searchTerm
+              ? "No existing reports match your search"
+              : reports.length === 0
+                ? "Search for a ticker above to generate your first comprehensive stock research report"
+                : "Try a different search term"}
           </p>
+          {searchTerm && !searchTickerExists && (
+            <button
+              onClick={handleResearchFromSearch}
+              className="empty-action-button"
+            >
+              Research {searchTerm.toUpperCase()}
+            </button>
+          )}
+          {reports.length === 0 && !searchTerm && (
+            <div className="empty-suggestions">
+              <p className="suggestions-label">Popular tickers to try:</p>
+              <div className="suggestion-chips">
+                {["AAPL", "MSFT", "GOOGL", "NVDA", "TSLA"].map((ticker) => (
+                  <button
+                    key={ticker}
+                    className="suggestion-chip"
+                    onClick={() => {
+                      setSearchTerm(ticker);
+                      setTimeout(() => {
+                        const searchInput = document.querySelector('.search-input') as HTMLInputElement;
+                        if (searchInput) {
+                          searchInput.focus();
+                        }
+                      }, 100);
+                    }}
+                  >
+                    {ticker}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="reports-grid">

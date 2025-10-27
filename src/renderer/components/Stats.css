@@ -369,25 +369,102 @@
 /* Empty State */
 .empty-state {
   text-align: center;
-  padding: 60px 20px;
+  padding: 60px 40px;
+  max-width: 700px;
+  margin: 0 auto;
 }
 
 .empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
+  font-size: 72px;
+  margin-bottom: 20px;
+  opacity: 0.6;
+  animation: fadeInIcon 0.5s ease-in;
+}
+
+@keyframes fadeInIcon {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 0.6;
+    transform: translateY(0);
+  }
 }
 
 .empty-state h3 {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 600;
   color: #1a1a1a;
-  margin: 0 0 8px 0;
+  margin: 0 0 12px 0;
 }
 
-.empty-state p {
+.empty-description {
   color: #6b7280;
   font-size: 15px;
+  line-height: 1.5;
+  margin: 0 0 32px 0;
+}
+
+.empty-features {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  text-align: left;
+  margin-bottom: 32px;
+  padding: 24px;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.feature-item {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.feature-icon {
+  font-size: 32px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.feature-text {
+  flex: 1;
+}
+
+.feature-text strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.feature-text p {
+  font-size: 14px;
+  color: #6b7280;
   margin: 0;
+  line-height: 1.5;
+}
+
+.empty-action-button {
+  background: #0071e3;
+  color: white;
+  padding: 12px 32px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.empty-action-button:hover {
+  background: #0077ed;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
 }
 
 /* Modal Styles */

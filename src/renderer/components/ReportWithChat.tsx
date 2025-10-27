@@ -5,6 +5,7 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import type { ChatMessage, Report, DockerOutput } from "../../shared/types";
 import { getReports, getReportContent } from "../utils/reportsCache";
+import { Skeleton } from "@/components/ui/skeleton";
 import "./ReportWithChat.css";
 
 interface BackgroundTask {
@@ -30,7 +31,7 @@ interface ReportWithChatProps {
 
 function ReportWithChat({
   reportPath,
-  onBack,
+  onBack: _onBack,
   onReevaluate,
   onUpdateReport,
   initialChatOpen = false,
@@ -174,19 +175,6 @@ function ReportWithChat({
     setSessionStarted(true);
     setIsLoadingHistory(false);
     return false;
-  };
-
-  const getReportTitle = () => {
-    const filename = reportPath.split("/").pop() || "";
-    const match = filename.match(/research-([A-Z]+)-/);
-    if (match && match[1]) {
-      return match[1];
-    }
-    const tickerMatch = reportContent.match(/\*\*Ticker:\*\*\s*([A-Z]+)/);
-    if (tickerMatch && tickerMatch[1]) {
-      return tickerMatch[1];
-    }
-    return filename.replace(".md", "");
   };
 
   const handleExport = async () => {
@@ -547,38 +535,33 @@ function ReportWithChat({
 
   return (
     <div className="report-with-chat">
-      <div className="report-with-chat-header">
-        <button className="back-button" onClick={onBack}>
-          ← Back to Reports
-        </button>
-        <div className="title-and-actions">
-          <div className="report-title">
-            <h2>{getReportTitle()}</h2>
-          </div>
-          <div className="header-actions">
+      {/* Action Bar */}
+      <div className="action-bar">
+        <div className="action-bar-left">
+          <button
+            className="action-button secondary"
+            onClick={() => onReevaluate(reportPath)}
+          >
+            🔄 Reevaluate
+          </button>
+          {chatOpen && (
             <button
-              className="action-button"
-              onClick={() => onReevaluate(reportPath)}
+              className="action-button secondary"
+              onClick={handleUpdateReport}
+              disabled={!ticker || !reportPath || messages.length <= 1}
+              title={messages.length <= 1 ? "Chat with the report first to incorporate insights" : "Update report with chat insights"}
             >
-              🔄 Reevaluate
+              📝 Incorporate Chat
             </button>
-            {chatOpen && (
-              <button
-                className="action-button"
-                onClick={handleUpdateReport}
-                disabled={!ticker || !reportPath || messages.length <= 1}
-                title={messages.length <= 1 ? "Chat with the report first to incorporate insights" : "Update report with chat insights"}
-              >
-                📝 Incorporate Chat
-              </button>
-            )}
-            <button
-              className={`action-button ${chatOpen ? "active" : "primary"}`}
-              onClick={handleToggleChat}
-            >
-              💬 Chat {chatOpen ? "(Open)" : ""}
-            </button>
-          </div>
+          )}
+        </div>
+        <div className="action-bar-right">
+          <button
+            className={`action-button ${chatOpen ? "active" : "primary"}`}
+            onClick={handleToggleChat}
+          >
+            💬 {chatOpen ? "Close Chat" : "Open Chat"}
+          </button>
         </div>
       </div>
 
@@ -695,9 +678,74 @@ function ReportWithChat({
           className={`report-section ${chatOpen ? "with-chat" : "full-width"}`}
         >
           {reportLoading && (
-            <div className="report-loading">
-              <div className="loading-spinner"></div>
-              <p>Loading report...</p>
+            <div className="report-loading-skeletons">
+              <div className="report-actions-toolbar">
+                <Skeleton className="h-9 w-32 rounded-md" />
+                <Skeleton className="h-9 w-32 rounded-md" />
+              </div>
+              <div className="skeleton-content">
+                {/* Title skeleton */}
+                <Skeleton className="h-10 w-3/4 mb-6" />
+                
+                {/* Metadata skeletons */}
+                <div className="flex gap-4 mb-8">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                
+                {/* Section header */}
+                <Skeleton className="h-8 w-1/2 mb-4" />
+                
+                {/* Paragraphs */}
+                <div className="space-y-3 mb-6">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                </div>
+                
+                {/* Section header */}
+                <Skeleton className="h-8 w-2/5 mb-4 mt-8" />
+                
+                {/* More paragraphs */}
+                <div className="space-y-3 mb-6">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+                
+                {/* Bullet points */}
+                <div className="space-y-2 mb-8 ml-6">
+                  <Skeleton className="h-3 w-5/6" />
+                  <Skeleton className="h-3 w-4/5" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-3/4" />
+                </div>
+                
+                {/* Section header */}
+                <Skeleton className="h-8 w-1/3 mb-4 mt-8" />
+                
+                {/* Table skeleton */}
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="flex gap-4">
+                    <Skeleton className="h-4 flex-1" />
+                    <Skeleton className="h-4 flex-1" />
+                    <Skeleton className="h-4 flex-1" />
+                  </div>
+                  <div className="flex gap-4">
+                    <Skeleton className="h-3 flex-1" />
+                    <Skeleton className="h-3 flex-1" />
+                    <Skeleton className="h-3 flex-1" />
+                  </div>
+                  <div className="flex gap-4">
+                    <Skeleton className="h-3 flex-1" />
+                    <Skeleton className="h-3 flex-1" />
+                    <Skeleton className="h-3 flex-1" />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

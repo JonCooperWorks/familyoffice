@@ -83,8 +83,45 @@ function Stats() {
 
         <div className="empty-state">
           <div className="empty-icon">📊</div>
-          <h3>No usage data yet</h3>
-          <p>Complete a research run to see your usage statistics here</p>
+          <h3>No Usage Data Yet</h3>
+          <p className="empty-description">
+            Complete your first stock research to start tracking API costs, token usage, and performance metrics
+          </p>
+          <div className="empty-features">
+            <div className="feature-item">
+              <span className="feature-icon">💰</span>
+              <div className="feature-text">
+                <strong>Cost Tracking</strong>
+                <p>Monitor spending across all research operations</p>
+              </div>
+            </div>
+            <div className="feature-item">
+              <span className="feature-icon">🎫</span>
+              <div className="feature-text">
+                <strong>Token Usage</strong>
+                <p>See input vs output token breakdown</p>
+              </div>
+            </div>
+            <div className="feature-item">
+              <span className="feature-icon">📈</span>
+              <div className="feature-text">
+                <strong>Activity Analysis</strong>
+                <p>Track research by ticker, type, and date</p>
+              </div>
+            </div>
+          </div>
+          <button 
+            className="empty-action-button"
+            onClick={() => {
+              // Navigate to reports
+              const reportsButton = document.querySelector('.nav-button') as HTMLButtonElement;
+              if (reportsButton) {
+                reportsButton.click();
+              }
+            }}
+          >
+            Go to Reports
+          </button>
         </div>
       </div>
     );
