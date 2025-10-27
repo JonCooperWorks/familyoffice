@@ -25,15 +25,11 @@ export function CommandPalette({
   reports,
 }: CommandPaletteProps) {
   const [search, setSearch] = useState("");
-  const [pages, setPages] = useState<string[]>([]);
-  
-  const page = pages[pages.length - 1];
 
   // Reset state when closing
   useEffect(() => {
     if (!isOpen) {
       setSearch("");
-      setPages([]);
     }
   }, [isOpen]);
 
@@ -64,11 +60,6 @@ export function CommandPalette({
     [onClose]
   );
 
-  // Get recent reports (last 5)
-  const recentReports = [...reports]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
-
   if (!isOpen) return null;
 
   return (
@@ -76,7 +67,7 @@ export function CommandPalette({
       <Command
         className="command-palette"
         onClick={(e) => e.stopPropagation()}
-        shouldFilter={!page}
+        shouldFilter={true}
         loop
       >
         <div className="command-palette-header">
@@ -107,8 +98,7 @@ export function CommandPalette({
             No results found.
           </Command.Empty>
 
-          {!page && (
-            <>
+          <>
               <Command.Group heading="Navigation" className="command-group">
                 <Command.Item
                   onSelect={() => handleSelect(() => onNavigate("reports"))}
@@ -173,86 +163,23 @@ export function CommandPalette({
                 )}
               </Command.Group>
 
-              {recentReports.length > 0 && (
-                <>
-                  <Command.Separator className="command-separator" />
-
-                  <Command.Group heading="Recent Reports" className="command-group">
-                    {recentReports.map((report) => (
-                      <Command.Item
-                        key={report.path}
-                        onSelect={() => handleSelect(() => onOpenReport(report.path))}
-                        className="command-item"
-                        value={`${report.ticker} ${report.company || ""}`}
-                      >
-                        <span className="command-icon">
-                          {report.type === "research" ? "📄" : "🔄"}
-                        </span>
-                        <div className="command-report-info">
-                          <span className="command-label">{report.ticker}</span>
-                          {report.company && (
-                            <span className="command-description">
-                              {report.company}
-                            </span>
-                          )}
-                        </div>
-                        <span className="command-date">
-                          {new Date(report.date).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </span>
-                      </Command.Item>
-                    ))}
-                  </Command.Group>
-                </>
-              )}
-
               <Command.Separator className="command-separator" />
 
-              <Command.Group heading="Search Reports" className="command-group">
-                <Command.Item
-                  onSelect={() => setPages([...pages, "search"])}
-                  className="command-item"
-                >
-                  <span className="command-icon">🔎</span>
-                  <span className="command-label">Search all reports...</span>
-                  <kbd className="command-shortcut">⌘F</kbd>
-                </Command.Item>
-              </Command.Group>
-            </>
-          )}
-
-          {page === "search" && (
-            <Command.Group heading="All Reports" className="command-group">
-              <Command.Item
-                onSelect={() => setPages(pages.slice(0, -1))}
-                className="command-item command-item-back"
-              >
-                <span className="command-icon">←</span>
-                <span className="command-label">Back</span>
-              </Command.Item>
-              {reports
-                .filter((report) => {
-                  const searchLower = search.toLowerCase();
-                  return (
-                    report.ticker.toLowerCase().includes(searchLower) ||
-                    report.company?.toLowerCase().includes(searchLower)
-                  );
-                })
-                .map((report) => (
+              <Command.Group heading="Reports" className="command-group">
+                {reports.map((report) => (
                   <Command.Item
                     key={report.path}
                     onSelect={() => handleSelect(() => onOpenReport(report.path))}
                     className="command-item"
                     value={`${report.ticker} ${report.company || ""}`}
+                    keywords={[report.ticker, report.company || ""].filter(Boolean)}
                   >
                     <span className="command-icon">
                       {report.type === "research" ? "📄" : "🔄"}
                     </span>
                     <div className="command-report-info">
                       <span className="command-label">{report.ticker}</span>
-                      {report.company && (
+                      {report.company && report.company !== report.ticker && (
                         <span className="command-description">
                           {report.company}
                         </span>
@@ -262,13 +189,12 @@ export function CommandPalette({
                       {new Date(report.date).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
-                        year: "numeric",
                       })}
                     </span>
                   </Command.Item>
                 ))}
-            </Command.Group>
-          )}
+              </Command.Group>
+          </>
         </Command.List>
 
         <div className="command-palette-footer">

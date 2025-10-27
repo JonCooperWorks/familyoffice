@@ -53,7 +53,6 @@ function Reports({
     companyName?: string;
     reportPath?: string;
   } | null>(null);
-  const [isMigrating, setIsMigrating] = useState(false);
 
   useEffect(() => {
     loadReports();
@@ -205,25 +204,6 @@ function Reports({
     }
   };
 
-  const handleManualMigration = async () => {
-    setIsMigrating(true);
-    try {
-      console.log("🔄 Starting manual migration...");
-      const migratedCount = await migrateReportsFromFileSystem();
-      if (migratedCount > 0) {
-        console.log(`✅ Migrated ${migratedCount} reports from disk to localStorage`);
-        await loadReports();
-        alert(`Successfully updated ${migratedCount} reports with content from disk!`);
-      } else {
-        alert("No reports found on disk to migrate, or all reports already have content.");
-      }
-    } catch (error) {
-      console.error("Migration failed:", error);
-      alert("Failed to migrate reports. Check console for details.");
-    } finally {
-      setIsMigrating(false);
-    }
-  };
 
   const filteredReports = reports.filter((report) =>
     report.ticker.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -291,16 +271,6 @@ function Reports({
             Search for existing reports or research a new stock
           </p>
         </div>
-        {reports.length === 0 && !loading && (
-          <button
-            onClick={handleManualMigration}
-            disabled={isMigrating}
-            className="migrate-button"
-            title="Import reports from disk to localStorage"
-          >
-            {isMigrating ? "Migrating..." : "📥 Import Old Reports"}
-          </button>
-        )}
       </div>
 
       {/* Background Tasks Indicator */}

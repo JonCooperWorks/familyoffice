@@ -502,8 +502,12 @@ ipcMain.handle("get-reports", async (): Promise<Report[]> => {
       const stats = await stat(filePath);
 
       // Parse filename: research-AAPL-2025-10-11T14-30-00.md
-      const match = file.match(/^research-([A-Z]+)-(.+)\.md$/);
-      if (!match) continue;
+      // Updated pattern to support tickers with numbers and dots
+      const match = file.match(/^research-([A-Z0-9.]+)-(.+)\.md$/);
+      if (!match) {
+        console.log(`⚠️ Skipping file that doesn't match pattern: ${file}`);
+        continue;
+      }
 
       const ticker = match[1];
 
@@ -531,6 +535,11 @@ ipcMain.handle("get-reports", async (): Promise<Report[]> => {
 
     // Sort by date, most recent first
     reports.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+    console.log(`📊 Found ${reports.length} reports in ${reportsDir}`);
+    if (reports.length > 0) {
+      console.log(`📋 Report tickers: ${reports.map(r => r.ticker).join(", ")}`);
+    }
 
     return reports;
   } catch (error) {

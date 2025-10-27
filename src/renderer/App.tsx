@@ -7,6 +7,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import type { DependencyStatus, ResearchRequest, Report } from "../shared/types";
 import { addReportToLocalStorage, getReportContent, getReports } from "./utils/reportsCache";
 import "./utils/metadataViewer"; // Load metadata viewer utilities
+import "./utils/debugStorage"; // Load debug storage utilities
 import { Toaster } from "@/components/ui/toaster";
 import { showSuccessToast, showErrorToast, showLoadingToast, dismissToast } from "@/lib/toast";
 import "./App.css";
@@ -92,6 +93,13 @@ function App() {
     checkDependencies();
     loadReports();
   }, []);
+
+  // Reload reports when command palette opens
+  useEffect(() => {
+    if (commandPaletteOpen) {
+      loadReports();
+    }
+  }, [commandPaletteOpen]);
 
   // Load reports for command palette
   const loadReports = async () => {
@@ -320,6 +328,9 @@ function App() {
           }),
         );
 
+        // Reload reports for command palette
+        loadReports();
+
         // Auto-remove completed task after 5 seconds
         setTimeout(() => {
           setBackgroundTasks((prev) =>
@@ -539,6 +550,9 @@ function App() {
             return task;
           }),
         );
+
+        // Reload reports for command palette
+        loadReports();
 
         // If this is an update task and we're viewing a report, open the new report
         const newReportPath = result?.path;
