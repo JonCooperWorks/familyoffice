@@ -22,8 +22,8 @@ export interface ChatMessage {
 }
 
 /**
- * Main AgentService for the GUI that orchestrates different agent types
- * This service adapts the CLI agents for use in an Electron environment
+ * Main AgentService that orchestrates different agent types
+ * This service manages research, chat, and quality checking operations
  */
 export class AgentService {
   private config: AgentConfig;
