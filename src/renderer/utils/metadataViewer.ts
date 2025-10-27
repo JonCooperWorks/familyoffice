@@ -32,8 +32,11 @@ export interface ResearchMetadata {
 
 export async function getAllMetadata(): Promise<ResearchMetadata[]> {
   try {
-    if (typeof window !== "undefined" && window.electronAPI) {
-      return await window.electronAPI.getMetadata();
+    if (typeof window !== "undefined") {
+      const data = localStorage.getItem("researchMetadata");
+      if (data) {
+        return JSON.parse(data);
+      }
     }
     return [];
   } catch (error) {
@@ -198,18 +201,16 @@ export async function exportMetadata(): Promise<string> {
 }
 
 export async function clearMetadata(): Promise<boolean> {
-  if (typeof window === "undefined" || !window.electronAPI) return false;
+  if (typeof window === "undefined") return false;
 
   if (
     confirm(
       "Are you sure you want to clear all research metadata? This cannot be undone.",
     )
   ) {
-    const success = await window.electronAPI.clearMetadata();
-    if (success) {
-      console.log("✅ Metadata cleared");
-    }
-    return success;
+    localStorage.removeItem("researchMetadata");
+    console.log("✅ Metadata cleared");
+    return true;
   }
   return false;
 }
@@ -218,10 +219,29 @@ export async function clearMetadata(): Promise<boolean> {
 export async function saveMetadata(
   metadata: ResearchMetadata,
 ): Promise<boolean> {
-  if (typeof window !== "undefined" && window.electronAPI) {
-    return await window.electronAPI.saveMetadata(metadata);
+  try {
+    if (typeof window !== "undefined") {
+      const allMetadata = await getAllMetadata();
+      
+      // Check if metadata with this ID already exists
+      const existingIndex = allMetadata.findIndex(m => m.id === metadata.id);
+      
+      if (existingIndex >= 0) {
+        // Update existing metadata
+        allMetadata[existingIndex] = metadata;
+      } else {
+        // Add new metadata
+        allMetadata.push(metadata);
+      }
+      
+      localStorage.setItem("researchMetadata", JSON.stringify(allMetadata));
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error("Failed to save metadata:", error);
+    return false;
   }
-  return false;
 }
 
 // Make functions available in browser console

@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import type { ChatMessage, Report, DockerOutput } from "../../shared/types";
+import { getReports, getReportContent } from "../utils/reportsCache";
 import "./ReportWithChat.css";
 
 interface BackgroundTask {
@@ -117,8 +118,15 @@ function ReportWithChat({
     setReportLoading(true);
     setReportError(null);
     try {
-      const data = await window.electronAPI.readReport(reportPath);
-      setReportContent(data);
+      // Load from localStorage only
+      const cachedContent = getReportContent(reportPath);
+      if (cachedContent) {
+        console.log("📂 Loading report from localStorage");
+        setReportContent(cachedContent);
+      } else {
+        console.error("📂 Report not found in localStorage:", reportPath);
+        setReportError("Report not found. It may have been deleted or not yet loaded.");
+      }
     } catch (err) {
       setReportError(
         err instanceof Error ? err.message : "Failed to load report",
@@ -341,7 +349,7 @@ function ReportWithChat({
 
         // Get all reports
         console.log("📚 Fetching all reports...");
-        const allReports = await window.electronAPI.getReports();
+        const allReports = await getReports();
         console.log(`📚 Found ${allReports.length} total reports`);
 
         // For each cashtag, find the most recent report
@@ -362,20 +370,19 @@ function ReportWithChat({
             // Reports are already sorted by date (most recent first)
             const latestReport = tickerReports[0];
             console.log(
-              `📄 Loading report for ${cashtagTicker}: ${latestReport.path}`,
+              `📄 Loading report for ${cashtagTicker} from localStorage`,
             );
-            try {
-              const content = await window.electronAPI.readReport(
-                latestReport.path,
-              );
+            
+            // Get content from the report object (stored in localStorage)
+            const content = latestReport.content;
+            if (content) {
               referenceReports.push({ ticker: cashtagTicker, content });
               console.log(
                 `✅ Loaded report for ${cashtagTicker} (${content.length} chars)`,
               );
-            } catch (error) {
-              console.error(
-                `❌ Failed to load report for ${cashtagTicker}:`,
-                error,
+            } else {
+              console.warn(
+                `⚠️  Report found for ${cashtagTicker} but no content available`,
               );
             }
           } else {
@@ -403,7 +410,7 @@ function ReportWithChat({
       const result = await window.electronAPI.runChat(
         ticker.toUpperCase(),
         messageContent,
-        reportPath || undefined,
+        reportContent || undefined,
         referenceReports.length > 0 ? referenceReports : undefined,
       );
 

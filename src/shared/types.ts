@@ -10,6 +10,7 @@ export interface ResearchRequest {
   ticker: string;
   companyName?: string;
   reportPath?: string;
+  reportContent?: string; // Existing report content for reevaluation
 }
 
 export interface ChatMessage {
@@ -26,6 +27,7 @@ export interface Report {
   company?: string;
   date: Date;
   type: "research" | "reevaluation";
+  content?: string; // Full markdown content stored in localStorage
 }
 
 export interface DockerOutput {

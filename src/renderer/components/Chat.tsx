@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import type { ChatMessage } from "../../shared/types";
+import { getReports, getReportContent } from "../utils/reportsCache";
 import "./Chat.css";
 
 interface ChatProps {
@@ -213,7 +214,7 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
 
         // Get all reports
         console.log("📚 Fetching all reports...");
-        const allReports = await window.electronAPI.getReports();
+        const allReports = await getReports();
         console.log(`📚 Found ${allReports.length} total reports`);
 
         // For each cashtag, find the most recent report
@@ -234,20 +235,19 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
             // Reports are already sorted by date (most recent first)
             const latestReport = tickerReports[0];
             console.log(
-              `📄 Loading report for ${cashtagTicker}: ${latestReport.path}`,
+              `📄 Loading report for ${cashtagTicker} from localStorage`,
             );
-            try {
-              const content = await window.electronAPI.readReport(
-                latestReport.path,
-              );
+            
+            // Get content from the report object (stored in localStorage)
+            const content = latestReport.content;
+            if (content) {
               referenceReports.push({ ticker: cashtagTicker, content });
               console.log(
                 `✅ Loaded report for ${cashtagTicker} (${content.length} chars)`,
               );
-            } catch (error) {
-              console.error(
-                `❌ Failed to load report for ${cashtagTicker}:`,
-                error,
+            } else {
+              console.warn(
+                `⚠️  Report found for ${cashtagTicker} but no content available`,
               );
             }
           } else {
@@ -272,10 +272,12 @@ function Chat({ preloadedReport, onClearReport }: ChatProps) {
         referenceReports.length,
         "reference reports",
       );
+      // If we have a reportPath, get the content from localStorage
+      const reportContent = reportPath ? getReportContent(reportPath) || undefined : undefined;
       const result = await window.electronAPI.runChat(
         ticker,
         messageContent,
-        reportPath,
+        reportContent,
         referenceReports.length > 0 ? referenceReports : undefined,
       );
 

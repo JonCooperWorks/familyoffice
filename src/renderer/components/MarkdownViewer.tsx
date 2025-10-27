@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import { getReportContent } from "../utils/reportsCache";
 import "./MarkdownViewer.css";
 
 interface MarkdownViewerProps {
@@ -32,8 +33,15 @@ function MarkdownViewer({
     setLoading(true);
     setError(null);
     try {
-      const data = await window.electronAPI.readReport(reportPath);
-      setContent(data);
+      // Load from localStorage only
+      const cachedContent = getReportContent(reportPath);
+      if (cachedContent) {
+        console.log("📂 Loading report from localStorage");
+        setContent(cachedContent);
+      } else {
+        console.error("📂 Report not found in localStorage:", reportPath);
+        setError("Report not found. It may have been deleted or not yet loaded.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load report");
     } finally {

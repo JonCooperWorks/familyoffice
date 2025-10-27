@@ -3,7 +3,8 @@ import DepsCheck from "./components/DepsCheck";
 import Reports from "./components/Reports";
 import ReportWithChat from "./components/ReportWithChat";
 import Stats from "./components/Stats";
-import type { DependencyStatus, ResearchRequest } from "../shared/types";
+import type { DependencyStatus, ResearchRequest, Report } from "../shared/types";
+import { addReportToLocalStorage, getReportContent } from "./utils/reportsCache";
 import "./utils/metadataViewer"; // Load metadata viewer utilities
 import "./App.css";
 
@@ -46,22 +47,8 @@ interface ResearchMetadata {
   reportPath?: string;
 }
 
-// Claude 3.5 Sonnet pricing (as of 2024)
-// Source: https://www.anthropic.com/api
-const PRICING = {
-  INPUT_PER_MILLION: 3.0, // $3.00 per million input tokens
-  OUTPUT_PER_MILLION: 15.0, // $15.00 per million output tokens
-};
-
-function calculateCost(inputTokens: number, outputTokens: number) {
-  const inputCost = (inputTokens / 1_000_000) * PRICING.INPUT_PER_MILLION;
-  const outputCost = (outputTokens / 1_000_000) * PRICING.OUTPUT_PER_MILLION;
-  return {
-    input_cost: inputCost,
-    output_cost: outputCost,
-    total_cost: inputCost + outputCost,
-  };
-}
+// Import centralized pricing configuration
+import { calculateCost } from "../shared/pricing";
 
 function saveResearchMetadata(metadata: ResearchMetadata) {
   try {
@@ -178,6 +165,23 @@ function App() {
         // Extract usage from result if available
         const usage = result?.usage;
 
+        // Save the report to localStorage if it contains content
+        if (result?.content && result?.path && result?.filename) {
+          const reportType = mode === "reevaluate" ? "reevaluation" : "research";
+          const report: Report = {
+            filename: result.filename,
+            path: result.path,
+            ticker: newTask.ticker,
+            company: newTask.companyName,
+            date: endTime,
+            type: reportType as "research" | "reevaluation",
+            content: result.content,
+          };
+          
+          addReportToLocalStorage(report);
+          console.log(`💾 Saved ${reportType} report to localStorage:`, report.ticker);
+        }
+
         setBackgroundTasks((prev) =>
           prev.map((task) => {
             if (task.id === taskId) {
@@ -243,6 +247,7 @@ function App() {
         ticker: newTask.ticker,
         companyName: newTask.companyName,
         reportPath: mode === "reevaluate" ? reportPath : undefined,
+        reportContent: mode === "reevaluate" && reportPath ? getReportContent(reportPath) || undefined : undefined,
       };
 
       await window.electronAPI.runResearch(request);
@@ -324,6 +329,21 @@ function App() {
 
         // Extract usage from result if available
         const usage = result?.usage;
+
+        // Save the updated report to localStorage if it contains content
+        if (result?.content && result?.path && result?.filename) {
+          const report: Report = {
+            filename: result.filename,
+            path: result.path,
+            ticker: ticker.toUpperCase(),
+            date: endTime,
+            type: "research",
+            content: result.content,
+          };
+          
+          addReportToLocalStorage(report);
+          console.log(`💾 Saved updated report to localStorage:`, report.ticker);
+        }
 
         setBackgroundTasks((prev) =>
           prev.map((task) => {

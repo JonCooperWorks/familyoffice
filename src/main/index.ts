@@ -14,6 +14,11 @@ import { AgentManager } from "./agentManager";
 import type { ResearchRequest, Report } from "../shared/types";
 import fixPath from "fix-path";
 import { AlphaVantageService } from "../services/alphaVantageService";
+import {
+  hasAlphaVantageMcpServer,
+  setAlphaVantageMcpServer,
+} from "../utils/codexConfig";
+import { calculateCost } from "../shared/pricing";
 
 // Fix PATH and set Codex binary location early
 fixPath();
@@ -144,6 +149,15 @@ async function loadAlphaVantageApiKey(): Promise<void> {
       if (settings.alphaVantageApiKey) {
         AlphaVantageService.setApiKey(settings.alphaVantageApiKey);
         console.log("✅ Alpha Vantage API key loaded");
+
+        // Check if MCP server is configured, if not, add it
+        const hasMcpServer = await hasAlphaVantageMcpServer();
+        if (!hasMcpServer) {
+          console.log("ℹ️ Configuring Alpha Vantage MCP server in ~/.codex/config.toml");
+          await setAlphaVantageMcpServer(settings.alphaVantageApiKey);
+        } else {
+          console.log("✅ Alpha Vantage MCP server already configured");
+        }
       }
     } catch {
       // Settings file doesn't exist yet
@@ -171,6 +185,9 @@ async function saveAlphaVantageApiKey(apiKey: string): Promise<void> {
     await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
     AlphaVantageService.setApiKey(apiKey);
     console.log("✅ Alpha Vantage API key saved");
+
+    // Also update the Codex config.toml
+    await setAlphaVantageMcpServer(apiKey);
   } catch (error) {
     console.error("Error saving Alpha Vantage API key:", error);
     throw error;
@@ -245,12 +262,14 @@ ipcMain.handle("run-research", async (_event, request: ResearchRequest) => {
 
     let result: {
       path: string;
+      content: string;
+      filename: string;
       usage?: { input_tokens: number; output_tokens: number };
     };
 
     if (request.reportPath) {
-      // This is a reevaluation
-      result = await agentManager.runReevaluate(request, request.reportPath);
+      // This is a reevaluation - note: reportPath may contain existing content in request
+      result = await agentManager.runReevaluate(request, request.reportPath, request.reportContent);
     } else {
       // This is new research
       result = await agentManager.runResearch(request);
@@ -261,15 +280,11 @@ ipcMain.handle("run-research", async (_event, request: ResearchRequest) => {
     const duration = endTime - startTime;
 
     if (result.usage) {
-      // Claude 3.5 Sonnet pricing
-      const INPUT_COST_PER_MILLION = 3.0;
-      const OUTPUT_COST_PER_MILLION = 15.0;
-
-      const input_cost =
-        (result.usage.input_tokens / 1_000_000) * INPUT_COST_PER_MILLION;
-      const output_cost =
-        (result.usage.output_tokens / 1_000_000) * OUTPUT_COST_PER_MILLION;
-      const total_cost = input_cost + output_cost;
+      // Calculate costs using centralized pricing configuration
+      const costs = calculateCost(
+        result.usage.input_tokens,
+        result.usage.output_tokens
+      );
 
       // Save metadata
       const metadata = {
@@ -285,11 +300,7 @@ ipcMain.handle("run-research", async (_event, request: ResearchRequest) => {
           output_tokens: result.usage.output_tokens,
           total_tokens: result.usage.input_tokens + result.usage.output_tokens,
         },
-        cost: {
-          input_cost,
-          output_cost,
-          total_cost,
-        },
+        cost: costs,
         logs: logs,
         reportPath: result.path,
       };
@@ -337,7 +348,7 @@ ipcMain.handle(
     _event,
     ticker: string,
     message: string,
-    reportPath?: string,
+    reportContent?: string,
     referenceReports?: Array<{ ticker: string; content: string }>,
   ) => {
     try {
@@ -348,7 +359,7 @@ ipcMain.handle(
       const result = await agentManager.runChat(
         ticker,
         message,
-        reportPath,
+        reportContent,
         (streamedText) => {
           // Send streaming text updates to the renderer
           mainWindow?.webContents.send("chat-stream", streamedText);
@@ -405,15 +416,11 @@ ipcMain.handle(
       const duration = endTime - startTime;
 
       if (result.usage) {
-        // Claude 3.5 Sonnet pricing
-        const INPUT_COST_PER_MILLION = 3.0;
-        const OUTPUT_COST_PER_MILLION = 15.0;
-
-        const input_cost =
-          (result.usage.input_tokens / 1_000_000) * INPUT_COST_PER_MILLION;
-        const output_cost =
-          (result.usage.output_tokens / 1_000_000) * OUTPUT_COST_PER_MILLION;
-        const total_cost = input_cost + output_cost;
+        // Calculate costs using centralized pricing configuration
+        const costs = calculateCost(
+          result.usage.input_tokens,
+          result.usage.output_tokens
+        );
 
         // Save metadata
         const metadata = {
@@ -430,11 +437,7 @@ ipcMain.handle(
             total_tokens:
               result.usage.input_tokens + result.usage.output_tokens,
           },
-          cost: {
-            input_cost,
-            output_cost,
-            total_cost,
-          },
+          cost: costs,
           logs: logs,
           reportPath: result.path,
         };

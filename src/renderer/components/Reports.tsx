@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
 import type { Report } from "../../shared/types";
+import {
+  getReports,
+  syncReportsFromFileSystem,
+  saveReportsToLocalStorage,
+  migrateReportsFromFileSystem,
+} from "../utils/reportsCache";
 import "./Reports.css";
 
 interface BackgroundTask {
@@ -46,6 +52,7 @@ function Reports({
     companyName?: string;
     reportPath?: string;
   } | null>(null);
+  const [isMigrating, setIsMigrating] = useState(false);
 
   useEffect(() => {
     loadReports();
@@ -62,7 +69,25 @@ function Reports({
   const loadReports = async () => {
     setLoading(true);
     try {
-      const data = await window.electronAPI.getReports();
+      let data = await getReports();
+      
+      // Check if any reports are missing content and need migration
+      const reportsNeedingContent = data.filter(r => !r.content);
+      
+      if (data.length === 0 || reportsNeedingContent.length > 0) {
+        if (data.length === 0) {
+          console.log("📂 LocalStorage is empty, checking for reports on disk...");
+        } else {
+          console.log(`📝 ${reportsNeedingContent.length} reports missing content, updating...`);
+        }
+        
+        const migratedCount = await migrateReportsFromFileSystem();
+        if (migratedCount > 0) {
+          console.log(`✅ Updated ${migratedCount} reports with content from disk`);
+          data = await getReports(); // Reload from localStorage
+        }
+      }
+      
       setReports(data);
     } catch (error) {
       console.error("Failed to load reports:", error);
@@ -87,9 +112,12 @@ function Reports({
 
       if (success) {
         // Remove the report from the local state immediately
-        setReports((prevReports) =>
-          prevReports.filter((r) => r.path !== report.path),
-        );
+        const updatedReports = reports.filter((r) => r.path !== report.path);
+        setReports(updatedReports);
+        
+        // Update localStorage
+        saveReportsToLocalStorage(updatedReports);
+        
         console.log("Report deleted successfully:", report.filename);
       } else {
         alert("Failed to delete the report. Please try again.");
@@ -100,13 +128,23 @@ function Reports({
     }
   };
 
-  // Reload reports when background tasks complete
+  // Reload reports from file system when background tasks complete
   useEffect(() => {
     const hasCompleted = backgroundTasks.some(
       (task) => task.status === "completed",
     );
     if (hasCompleted) {
-      loadReports();
+      // Force reload from file system to get new reports
+      const syncReports = async () => {
+        try {
+          console.log("🔄 Syncing reports from file system after task completion...");
+          const data = await syncReportsFromFileSystem();
+          setReports(data);
+        } catch (error) {
+          console.error("Failed to sync reports:", error);
+        }
+      };
+      syncReports();
     }
   }, [backgroundTasks]);
 
@@ -166,6 +204,26 @@ function Reports({
     }
   };
 
+  const handleManualMigration = async () => {
+    setIsMigrating(true);
+    try {
+      console.log("🔄 Starting manual migration...");
+      const migratedCount = await migrateReportsFromFileSystem();
+      if (migratedCount > 0) {
+        console.log(`✅ Migrated ${migratedCount} reports from disk to localStorage`);
+        await loadReports();
+        alert(`Successfully updated ${migratedCount} reports with content from disk!`);
+      } else {
+        alert("No reports found on disk to migrate, or all reports already have content.");
+      }
+    } catch (error) {
+      console.error("Migration failed:", error);
+      alert("Failed to migrate reports. Check console for details.");
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+
   const filteredReports = reports.filter((report) =>
     report.ticker.toLowerCase().includes(searchTerm.toLowerCase()),
   );
@@ -199,6 +257,16 @@ function Reports({
             Search for existing reports or research a new stock
           </p>
         </div>
+        {reports.length === 0 && !loading && (
+          <button
+            onClick={handleManualMigration}
+            disabled={isMigrating}
+            className="migrate-button"
+            title="Import reports from disk to localStorage"
+          >
+            {isMigrating ? "Migrating..." : "📥 Import Old Reports"}
+          </button>
+        )}
       </div>
 
       {/* Background Tasks Indicator */}

@@ -9,6 +9,7 @@ import {
   type ResearchMetadata,
 } from "../utils/metadataViewer";
 import "./Stats.css";
+import { CURRENT_PRICING } from "../../shared/pricing";
 
 interface MetadataStats {
   totalRuns: number;
@@ -295,10 +296,13 @@ function Stats() {
       {/* Pricing Information */}
       <div className="stats-section pricing-info">
         <h3>Pricing Information</h3>
-        <p>Current rates for Claude 3.5 Sonnet:</p>
+        <p>Current rates for {CURRENT_PRICING.provider} {CURRENT_PRICING.model}:</p>
         <ul>
-          <li>Input tokens: $3.00 per million tokens</li>
-          <li>Output tokens: $15.00 per million tokens</li>
+          <li>Input tokens: ${CURRENT_PRICING.inputPerMillion.toFixed(2)} per million tokens</li>
+          <li>Output tokens: ${CURRENT_PRICING.outputPerMillion.toFixed(2)} per million tokens</li>
+          {CURRENT_PRICING.cachedInputPerMillion && (
+            <li>Cached input tokens: ${CURRENT_PRICING.cachedInputPerMillion.toFixed(3)} per million tokens</li>
+          )}
         </ul>
         <p className="note">
           💡 Tip: Export your data regularly for long-term tracking and analysis

@@ -13,7 +13,7 @@ declare global {
       runChat: (
         ticker: string,
         message: string,
-        reportPath?: string,
+        reportContent?: string,
         referenceReports?: Array<{ ticker: string; content: string }>,
       ) => Promise<{
         response: string;
@@ -25,6 +25,8 @@ declare global {
       ) => Promise<
         | {
             path: string;
+            content: string;
+            filename: string;
             usage?: { input_tokens: number; output_tokens: number };
           }
         | string
