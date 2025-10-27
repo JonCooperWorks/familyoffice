@@ -23,6 +23,18 @@ A modern desktop application powered by **OpenAI Codex** that provides comprehen
 ![Chat Interface](./images/chat.png)
 *Interactive chat with AI about stock analysis*
 
+![Commands Interface](./images/commands.png)
+*Command panel for managing research operations*
+
+![Commands Interface](./images/commands-2.png)
+*Quickly research new stocks*
+
+![Usage Statistics](./images/stats.png)
+*Track API costs, token usage, and performance metrics*
+
+![Cost Breakdown](./images/costs.png)
+*Detailed cost analysis by report*
+
 ## 🚀 Quick Start
 
 ### Prerequisites
