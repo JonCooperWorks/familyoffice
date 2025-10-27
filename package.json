@@ -13,6 +13,8 @@
     "preview": "vite preview",
     "package": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac dmg",
+    "dist:clean": "rm -rf dist dist-electron release && npm run dist",
     "start": "npm run build && electron .",
     "electron": "electron ."
   },

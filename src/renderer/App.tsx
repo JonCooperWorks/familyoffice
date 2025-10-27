@@ -241,7 +241,12 @@ function App() {
     setBackgroundTasks((prev) => [...prev, newTask]);
 
     // Set up event handlers for this specific task
-    const cleanupOutput = window.electronAPI.onDockerOutput((data) => {
+    // These will auto-cleanup after firing once
+    let cleanupOutput: (() => void) | null = null;
+    let cleanupComplete: (() => void) | null = null;
+    let cleanupError: (() => void) | null = null;
+    
+    cleanupOutput = window.electronAPI.onDockerOutput((data) => {
       setBackgroundTasks((prev) =>
         prev.map((task) =>
           task.id === taskId
@@ -251,8 +256,13 @@ function App() {
       );
     });
 
-    const cleanupComplete = window.electronAPI.onProcessComplete(
+    cleanupComplete = window.electronAPI.onProcessComplete(
       async (result: any) => {
+        // Clean up listeners immediately when this fires
+        if (cleanupOutput) cleanupOutput();
+        if (cleanupComplete) cleanupComplete();
+        if (cleanupError) cleanupError();
+        
         const endTime = new Date();
 
         // Extract usage from result if available
@@ -340,7 +350,12 @@ function App() {
       },
     );
 
-    const cleanupError = window.electronAPI.onProcessError((error) => {
+    cleanupError = window.electronAPI.onProcessError((error) => {
+      // Clean up listeners immediately when this fires
+      if (cleanupOutput) cleanupOutput();
+      if (cleanupComplete) cleanupComplete();
+      if (cleanupError) cleanupError();
+      
       setBackgroundTasks((prev) =>
         prev.map((task) => {
           if (task.id === taskId) {
@@ -381,6 +396,11 @@ function App() {
     } catch (error) {
       console.error("Research error:", error);
       
+      // Clean up listeners on error
+      if (cleanupOutput) cleanupOutput();
+      if (cleanupComplete) cleanupComplete();
+      if (cleanupError) cleanupError();
+      
       // Dismiss loading toast and show error toast
       const task = backgroundTasks.find((t) => t.id === taskId);
       if (task?.toastId) {
@@ -410,10 +430,6 @@ function App() {
             : task,
         ),
       );
-    } finally {
-      cleanupOutput();
-      cleanupComplete();
-      cleanupError();
     }
   };
 
@@ -464,7 +480,12 @@ function App() {
     setBackgroundTasks((prev) => [...prev, newTask]);
 
     // Set up event handlers for this specific task
-    const cleanupOutput = window.electronAPI.onDockerOutput((data) => {
+    // These will auto-cleanup after firing once
+    let cleanupOutput: (() => void) | null = null;
+    let cleanupComplete: (() => void) | null = null;
+    let cleanupError: (() => void) | null = null;
+    
+    cleanupOutput = window.electronAPI.onDockerOutput((data) => {
       setBackgroundTasks((prev) =>
         prev.map((task) =>
           task.id === taskId
@@ -474,12 +495,19 @@ function App() {
       );
     });
 
-    const cleanupComplete = window.electronAPI.onProcessComplete(
+    cleanupComplete = window.electronAPI.onProcessComplete(
       async (result: any) => {
+        // Clean up listeners immediately when this fires
+        if (cleanupOutput) cleanupOutput();
+        if (cleanupComplete) cleanupComplete();
+        if (cleanupError) cleanupError();
+        
         const endTime = new Date();
 
         // Extract usage from result if available
         const usage = result?.usage;
+
+        console.log(`✅ [UPDATE DEBUG] Process complete for ${ticker}, result:`, result);
 
         // Save the updated report to localStorage if it contains content
         if (result?.content && result?.path && result?.filename) {
@@ -494,6 +522,8 @@ function App() {
           
           addReportToLocalStorage(report);
           console.log(`💾 Saved updated report to localStorage:`, report.ticker);
+        } else {
+          console.error(`❌ [UPDATE DEBUG] Invalid result structure:`, result);
         }
 
         setBackgroundTasks((prev) =>
@@ -577,7 +607,12 @@ function App() {
       },
     );
 
-    const cleanupError = window.electronAPI.onProcessError((error) => {
+    cleanupError = window.electronAPI.onProcessError((error) => {
+      // Clean up listeners immediately when this fires
+      if (cleanupOutput) cleanupOutput();
+      if (cleanupComplete) cleanupComplete();
+      if (cleanupError) cleanupError();
+      
       setBackgroundTasks((prev) =>
         prev.map((task) => {
           if (task.id === taskId) {
@@ -607,9 +642,21 @@ function App() {
     });
 
     try {
-      await window.electronAPI.updateReport(ticker, chatHistory);
+      const result = await window.electronAPI.updateReport(ticker, chatHistory);
+      console.log(`📋 [UPDATE DEBUG] IPC call returned with result:`, result);
+      
+      // Note: The process-complete event should also fire and be handled by cleanupComplete
+      // This is just a fallback in case the event doesn't fire
+      if (!result) {
+        console.error(`❌ [UPDATE DEBUG] No result returned from updateReport IPC call`);
+      }
     } catch (error) {
-      console.error("Update report error:", error);
+      console.error("❌ [UPDATE DEBUG] Update report error:", error);
+      
+      // Clean up listeners on error
+      if (cleanupOutput) cleanupOutput();
+      if (cleanupComplete) cleanupComplete();
+      if (cleanupError) cleanupError();
       
       // Dismiss loading toast and show error toast
       const task = backgroundTasks.find((t) => t.id === taskId);
@@ -640,10 +687,6 @@ function App() {
             : task,
         ),
       );
-    } finally {
-      cleanupOutput();
-      cleanupComplete();
-      cleanupError();
     }
   };
 
