@@ -18,9 +18,8 @@ import {
   setAlphaVantageMcpServer,
 } from "../utils/codexConfig";
 
-// Fix PATH and set Codex binary location early
+// Fix PATH for Electron to find system binaries
 fixPath();
-process.env.CODEX_BINARY = "/opt/homebrew/bin/codex";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

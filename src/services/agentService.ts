@@ -33,9 +33,6 @@ export class AgentService {
     // Fix PATH environment variable for Electron to find system binaries
     fixPath();
 
-    // Set the CODEX_BINARY environment variable to use system codex
-    process.env.CODEX_BINARY = "/opt/homebrew/bin/codex";
-
     this.config = {
       ...config,
       // Ensure we pass the fixed environment

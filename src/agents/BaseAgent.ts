@@ -1,5 +1,7 @@
 import { Codex, type Thread } from "@openai/codex-sdk";
 import { PromptLoader } from "../utils/promptLoader.js";
+import { getCodexBinaryPath } from "../utils/codexBinary";
+import type { App } from "electron";
 
 export interface AgentConfig {
   model?: string;
@@ -19,9 +21,16 @@ export abstract class BaseAgent {
   protected debug: boolean;
   protected thread?: Thread;
 
-  constructor(config: AgentConfig = {}) {
-    this.codex = new Codex(config.apiKey ? { apiKey: config.apiKey } : {});
-    this.promptLoader = new PromptLoader();
+  constructor(config: AgentConfig = {}, app?: App) {
+    // Get the correct codex binary path (bundled or system)
+    const codexPath = getCodexBinaryPath();
+    console.log(`🔧 BaseAgent: Initializing Codex SDK with binary at: ${codexPath}`);
+    
+    this.codex = new Codex({
+      ...(config.apiKey && { apiKey: config.apiKey }),
+      codexPathOverride: codexPath
+    });
+    this.promptLoader = new PromptLoader(app);
     this.model = config.model || "";
     this.debug = config.debug || false;
   }

@@ -80,6 +80,13 @@
         "filter": [
           "**/*.md"
         ]
+      },
+      {
+        "from": "dist-electron/vendor",
+        "to": "vendor",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "directories": {
